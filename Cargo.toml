@@ -1,0 +1,43 @@
+[package]
+name = "ruey"
+version = "0.0.0"
+edition = "2024"
+
+[profile.release]
+codegen-units = 1
+debug = true
+lto = "fat"
+opt-level = 3
+panic = "abort"
+
+[dependencies]
+log = "0.4"
+strum = { version = "0.27", features = ["derive"] }
+tokio = { version = "1.47", features = ["full"] }
+
+diesel = { version = "2.2", features = [
+    "sqlite",
+    "returning_clauses_for_sqlite_3_35",
+] }
+diesel_migrations = { version = "2.2", features = ["sqlite"] }
+
+winit = "0.30.12"
+eframe = "0.32"
+egui_code_editor = "0.2.17"
+egui_commonmark = { version = "0.21", features = [
+    "better_syntax_highlighting",
+    "macros",
+] }
+egui-modal = "0.6"
+egui_dock = "0.17"
+egui_flex = "0.4"
+egui_hooks = "0.8"
+egui_inbox = "0.9"
+egui_logger = "0.8"
+egui_plot = "0.33"
+
+twitch-irc = "5.0"
+twitch_api = "0.7"
+twitch_oauth2 = "0.15"
+
+rhai = "1.22"

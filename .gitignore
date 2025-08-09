@@ -1,0 +1,5 @@
+/dist
+/target
+
+*.sqlite
+/assets/icon.res
