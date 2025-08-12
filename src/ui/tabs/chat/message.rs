@@ -55,6 +55,8 @@ pub fn render_chat_message(ui: &mut Ui, chat_user_query: &mut String, message: &
             ui.colored_label(egui::Color32::WHITE, message.sender.name.clone());
             ui.separator();
 
+            // TODO: implement the buttons
+
             if ui.button("History").clicked() {
                 *chat_user_query = message.sender.name.clone();
                 ui.close();

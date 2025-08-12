@@ -1,12 +1,17 @@
 pub mod chat;
+mod settings;
 
 use eframe::egui;
 use egui_commonmark::{CommonMarkCache, commonmark_str};
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
 
-use crate::{state::AppState, ui::tabs::chat::show_chat_ui};
+use crate::{
+    state::AppState,
+    ui::tabs::{chat::show_chat_ui, settings::show_settings_ui},
+};
 
-#[derive(Display, EnumString, EnumIter)]
+#[derive(Clone, Display, EnumString, EnumIter, Serialize, Deserialize)]
 pub enum Tabs {
     Chat,
     Stats,
@@ -32,10 +37,11 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
         match tab {
             Tabs::Chat => show_chat_ui(ui, self.state),
-            Tabs::Logs => egui_logger::logger_ui().show(ui),
             Tabs::Docs => {
                 commonmark_str!(ui, &mut CommonMarkCache::default(), "./assets/Docs.md");
             }
+            Tabs::Logs => egui_logger::logger_ui().show(ui),
+            Tabs::Settings => show_settings_ui(ui, self.state),
             _ => {
                 ui.label("unimplemented");
             }

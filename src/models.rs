@@ -13,9 +13,21 @@ pub fn initialize_database() -> SqliteConnection {
     return conn;
 }
 
-#[derive(Queryable, Selectable)]
+#[derive(Debug, Clone, Queryable, Selectable, Default)]
 #[diesel(table_name = crate::schema::settings)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Settings {
     pub id: i32,
+    pub channel: Option<String>,
+    pub tree: Option<String>,
+    pub zoom_factor: Option<f32>,
+}
+
+#[derive(Debug, Clone, Insertable, Default)]
+#[diesel(table_name = crate::schema::settings)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct NewSettings {
+    pub channel: Option<String>,
+    pub tree: Option<String>,
+    pub zoom_factor: Option<f32>,
 }

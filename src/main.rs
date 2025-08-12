@@ -26,7 +26,7 @@ fn main() -> io::Result<()> {
     use tokio::io::unix::AsyncFd;
 
     tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "ruey=debug".to_string().into()))
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "ruey=trace".to_string().into()))
         .with(fmt::layer().with_writer(std::io::stdout))
         .init();
 
