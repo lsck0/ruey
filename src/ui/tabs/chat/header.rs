@@ -1,0 +1,105 @@
+use std::fs;
+
+use crate::{state::AppState, twitch::events::TwitchEvent, ui::tabs::chat::message::render_event_for_log};
+use eframe::egui::{self, Button, TextEdit, Ui};
+use egui_flex::{Flex, item};
+use tracing::warn;
+
+pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
+    Flex::horizontal().w_full().show(ui, |flex| {
+        flex.add_ui(item(), |ui| {
+            ui.menu_button("Show", |ui| {
+                ui.label("Chatters");
+                if ui
+                    .selectable_label(state.chat_show_messages_by_broadcaster, "Broadcaster")
+                    .clicked()
+                {
+                    state.chat_show_messages_by_broadcaster ^= true;
+                }
+                if ui
+                    .selectable_label(state.chat_show_messages_by_moderator, "Moderators")
+                    .clicked()
+                {
+                    state.chat_show_messages_by_moderator ^= true;
+                }
+                if ui.selectable_label(state.chat_show_messages_by_vip, "VIPs").clicked() {
+                    state.chat_show_messages_by_vip ^= true;
+                }
+                if ui
+                    .selectable_label(state.chat_show_messages_by_subscriber, "Subscribers")
+                    .clicked()
+                {
+                    state.chat_show_messages_by_subscriber ^= true;
+                }
+                if ui
+                    .selectable_label(state.chat_show_messages_by_regular_viewer, "Viewers")
+                    .clicked()
+                {
+                    state.chat_show_messages_by_regular_viewer ^= true;
+                }
+
+                ui.separator();
+                ui.label("Kinds");
+
+                if ui.selectable_label(state.chat_show_messages, "Messages").clicked() {
+                    state.chat_show_messages ^= true;
+                }
+                if ui.selectable_label(state.chat_show_follows, "Follows").clicked() {
+                    state.chat_show_follows ^= true;
+                }
+                if ui
+                    .selectable_label(state.chat_show_subscriptions, "Subscriptions")
+                    .clicked()
+                {
+                    state.chat_show_subscriptions ^= true;
+                }
+                if ui.selectable_label(state.chat_show_bits, "Bits").clicked() {
+                    state.chat_show_bits ^= true;
+                }
+            });
+        });
+
+        flex.add_ui(item().grow(1.0), |ui| {
+            let mut user_query_input = TextEdit::singleline(&mut state.chat_user_query)
+                .hint_text("Name Search")
+                .char_limit(75)
+                .desired_width(120.0);
+            if !state.chat_user_query_valid {
+                user_query_input = user_query_input.text_color(egui::Color32::RED);
+            }
+            user_query_input.show(ui);
+
+            let mut message_query_input = TextEdit::singleline(&mut state.chat_message_query)
+                .hint_text("Message Search")
+                .char_limit(75)
+                .desired_width(120.0);
+            if !state.chat_message_query_valid {
+                message_query_input = message_query_input.text_color(egui::Color32::RED);
+            }
+            message_query_input.show(ui);
+
+            if ui.button("Clear Search").clicked() {
+                state.chat_user_query.clear();
+                state.chat_message_query.clear();
+            }
+        });
+
+        if flex.add(item(), Button::new("Export Chat Log")).clicked() {
+            state.file_dialog.save_file();
+        }
+    });
+
+    // chat log saving, i failed twice moving this to a worker thread already
+    if let Some(path) = state.file_dialog.update(ui.ctx()).picked() {
+        let mut buffer = String::new();
+        buffer.reserve(state.events.items.len() * size_of::<TwitchEvent>());
+
+        for event in state.events.items.iter() {
+            render_event_for_log(&mut buffer, event);
+        }
+
+        if let Err(err) = fs::write(path, buffer) {
+            warn!("Failed to write chat log to file: {err}");
+        }
+    }
+}

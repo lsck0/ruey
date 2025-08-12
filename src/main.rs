@@ -1,22 +1,34 @@
 #![allow(clippy::needless_return)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+pub mod actions;
+pub mod app;
 pub mod models;
 pub mod schema;
 pub mod state;
+pub mod stats;
+pub mod twitch;
 pub mod ui;
 pub mod window;
 
-use std::{io, os::fd::AsRawFd as _};
-
 use eframe::{EframePumpStatus, UserEvent};
+use std::io;
 use tokio::task::LocalSet;
+use tracing::info;
+use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::event_loop::{ControlFlow, EventLoop};
 
-use crate::{state::App, window::get_window_options};
+use crate::{app::App, window::get_window_options};
 
+#[cfg(unix)]
 fn main() -> io::Result<()> {
-    egui_logger::builder().init().unwrap();
+    use std::os::fd::AsRawFd;
+    use tokio::io::unix::AsyncFd;
+
+    tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "ruey=debug".to_string().into()))
+        .with(fmt::layer().with_writer(std::io::stdout))
+        .init();
 
     let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event().build().unwrap();
     egui_eventloop.set_control_flow(ControlFlow::Poll);
@@ -24,17 +36,17 @@ fn main() -> io::Result<()> {
     let mut egui_app = eframe::create_native(
         env!("CARGO_PKG_NAME"),
         get_window_options(),
-        Box::new(|_| Ok(App::new())),
+        Box::new(|cctx| Ok(App::new(cctx))),
         &egui_eventloop,
     );
 
-    let runtime = tokio::runtime::Builder::new_current_thread()
+    let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .unwrap();
 
-    return LocalSet::new().block_on(&runtime, async {
-        let eventloop_fd = tokio::io::unix::AsyncFd::new(egui_eventloop.as_raw_fd())?;
+    LocalSet::new().block_on(&runtime, async {
+        let eventloop_fd = AsyncFd::new(egui_eventloop.as_raw_fd())?;
         let mut control_flow = ControlFlow::Poll;
 
         loop {
@@ -50,7 +62,7 @@ fn main() -> io::Result<()> {
             match egui_app.pump_eframe_app(&mut egui_eventloop, None) {
                 EframePumpStatus::Continue(next) => control_flow = next,
                 EframePumpStatus::Exit(code) => {
-                    log::info!("exit code: {code}");
+                    info!("exit code: {code}");
                     break;
                 }
             }
@@ -60,6 +72,43 @@ fn main() -> io::Result<()> {
             }
         }
 
-        return Ok::<_, io::Error>(());
-    });
+        Ok::<_, io::Error>(())
+    })
+}
+
+#[cfg(windows)]
+fn main() -> io::Result<()> {
+    tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "ruey=debug".to_string().into()))
+        .with(fmt::layer().with_writer(std::io::stdout))
+        .init();
+
+    let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event().build().unwrap();
+    egui_eventloop.set_control_flow(ControlFlow::Wait);
+
+    let mut egui_app = eframe::create_native(
+        env!("CARGO_PKG_NAME"),
+        get_window_options(),
+        Box::new(|cctx| Ok(App::new(cctx))),
+        &egui_eventloop,
+    );
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    LocalSet::new().block_on(&runtime, async {
+        loop {
+            match egui_app.pump_eframe_app(&mut egui_eventloop, None) {
+                EframePumpStatus::Continue(_) => {}
+                EframePumpStatus::Exit(code) => {
+                    info!("exit code: {code}");
+                    break;
+                }
+            }
+        }
+
+        Ok::<_, io::Error>(())
+    })
 }
