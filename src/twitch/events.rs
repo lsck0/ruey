@@ -56,9 +56,16 @@ pub trait PrivmsgMessageExt {
     fn is_by_subscriber(&self) -> bool;
     fn is_by_regular_viewer(&self) -> bool;
     fn is_first_message(&self) -> bool;
+
+    fn is_deleted(&self) -> bool;
+    fn is_timeouted(&self) -> bool;
+    fn is_banned(&self) -> bool;
+    fn mark_deleted(&mut self);
+    fn mark_timeouted(&mut self);
+    fn mark_banned(&mut self);
 }
 
-impl PrivmsgMessageExt for &PrivmsgMessage {
+impl PrivmsgMessageExt for PrivmsgMessage {
     fn is_by_broadcaster(&self) -> bool {
         self.badges.iter().any(|badge| badge.name == "broadcaster")
     }
@@ -85,5 +92,38 @@ impl PrivmsgMessageExt for &PrivmsgMessage {
             .0
             .get("first-msg")
             .is_some_and(|val| val.as_ref().is_some_and(|v| v.eq("1")))
+    }
+
+    fn is_deleted(&self) -> bool {
+        self.badges.iter().any(|badge| badge.name == "deleted")
+    }
+
+    fn is_timeouted(&self) -> bool {
+        self.badges.iter().any(|badge| badge.name == "timeouted")
+    }
+
+    fn is_banned(&self) -> bool {
+        self.badges.iter().any(|badge| badge.name == "banned")
+    }
+
+    fn mark_deleted(&mut self) {
+        self.badges.push(twitch_irc::message::Badge {
+            name: String::from("deleted"),
+            version: String::from("0"),
+        });
+    }
+
+    fn mark_timeouted(&mut self) {
+        self.badges.push(twitch_irc::message::Badge {
+            name: String::from("timeouted"),
+            version: String::from("0"),
+        });
+    }
+
+    fn mark_banned(&mut self) {
+        self.badges.push(twitch_irc::message::Badge {
+            name: String::from("banned"),
+            version: String::from("0"),
+        });
     }
 }

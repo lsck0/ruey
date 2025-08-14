@@ -13,10 +13,11 @@ panic = "abort"
 [dependencies]
 chrono = "0.4"
 linkify = "0.10"
+open = "5.3"
 regex = "1.11"
 reqwest = "0.12"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.142"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 strum = { version = "0.27", features = ["derive"] }
 tokio = { version = "1.47", features = ["full"] }
 tracing = "0.1"
@@ -32,17 +33,18 @@ libsqlite3-sys = { version = "0.35", features = ["bundled"] }
 winit = "0.30"
 eframe = "0.32"
 egui-file-dialog = "0.11"
+egui-toast = { git = "https://github.com/creativcoder/egui-toast.git" }
 egui_commonmark = { version = "0.21", features = [
     "better_syntax_highlighting",
     "macros",
 ] }
 egui_dock = { version = "0.17", features = ["serde"] }
-egui_flex = "0.4.0"
+egui_flex = "0.4"
 egui_infinite_scroll = "0.8"
 egui_logger = "0.8"
 
 twitch-irc = "5.0"
-twitch_api = "0.7"
+twitch_api = { version = "0.7", features = ["_all"] }
 twitch_oauth2 = "0.15"
 
 rhai = "1.22"

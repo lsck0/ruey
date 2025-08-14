@@ -4,9 +4,17 @@ use eframe::egui::{self, Color32, Popup, RichText, Ui};
 use linkify::LinkFinder;
 use twitch_irc::message::PrivmsgMessage;
 
-pub fn render_chat_message(ui: &mut Ui, chat_user_query: &mut String, message: &PrivmsgMessage) {
+pub fn render_chat_message(
+    ui: &mut Ui,
+    chat_user_query: &mut String,
+    message: &PrivmsgMessage,
+    logged_in_user_name: Option<String>,
+) {
     ui.horizontal_wrapped(|ui| {
         ui.style_mut().spacing.item_spacing.x = 0.0;
+
+        let mut message = message.to_owned();
+        message.message_text = message.message_text.trim().to_owned();
 
         // timestamp
         ui.label(RichText::new(
@@ -16,6 +24,22 @@ pub fn render_chat_message(ui: &mut Ui, chat_user_query: &mut String, message: &
                 .format("%H:%M:%S ")
                 .to_string(),
         ));
+
+        // ping?
+        if let Some(logged_in_user_name) = &logged_in_user_name
+            && message.message_text.contains(&logged_in_user_name.to_lowercase())
+        {
+            ui.label(RichText::new("PING ").color(Color32::PURPLE));
+        }
+
+        // pseudo badge aka deleted/timouted/banned
+        if message.is_banned() {
+            ui.label(RichText::new("[BANNED] ").color(Color32::RED));
+        } else if message.is_timeouted() {
+            ui.label(RichText::new("[TIMED OUT] ").color(Color32::RED));
+        } else if message.is_deleted() {
+            ui.label(RichText::new("[DELETED] ").color(Color32::RED));
+        }
 
         // badges
         if message.is_first_message() {
@@ -164,9 +188,36 @@ pub fn render_event_for_log(buffer: &mut String, event: &TwitchEvent) {
         TwitchEvent::Join(join) => {
             buffer.push_str(&format!("Joined channel {}.\n", join.channel_login));
         }
+        TwitchEvent::Notice(notice) => {
+            buffer.push_str(&format!("{}\n", notice.message_text.trim()));
+        }
         TwitchEvent::Privmsg(msg) => {
+            let badge1 = if msg.is_banned() {
+                "[BANNED] "
+            } else if msg.is_timeouted() {
+                "[TIMED OUT] "
+            } else if msg.is_deleted() {
+                "[DELETED] "
+            } else {
+                ""
+            };
+
+            let badge2 = if msg.is_first_message() {
+                "FIRST "
+            } else if msg.is_by_broadcaster() {
+                "CAST "
+            } else if msg.is_by_mod() {
+                "MOD "
+            } else if msg.is_by_vip() {
+                "VIP "
+            } else if msg.is_by_subscriber() {
+                "SUB "
+            } else {
+                ""
+            };
+
             buffer.push_str(&format!(
-                "{} {}: {}\n",
+                "{} {badge1}{badge2}{}: {}\n",
                 msg.server_timestamp.format("%H:%M:%S"),
                 msg.sender.name,
                 msg.message_text

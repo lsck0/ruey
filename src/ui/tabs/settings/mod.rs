@@ -2,6 +2,12 @@ use eframe::egui::{self, Color32, RichText, TextEdit};
 
 use crate::state::{AppState, AppStateDiff};
 
+#[derive(Default)]
+pub struct SettingsState {
+    pub channel_name: String,
+    pub channel_name_error: Option<String>,
+}
+
 pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
     ui.label(RichText::new("Settings").heading().color(Color32::WHITE));
 
@@ -17,8 +23,8 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
                 state.stop_twitch_worker();
             }
         } else {
-            let mut channel_edit = TextEdit::singleline(&mut state.setting_channel_name).char_limit(25);
-            if state.settings_channel_name_error.is_some() {
+            let mut channel_edit = TextEdit::singleline(&mut state.settings.channel_name).char_limit(25);
+            if state.settings.channel_name_error.is_some() {
                 channel_edit = channel_edit.text_color(Color32::RED);
             }
             ui.add(channel_edit);
@@ -26,17 +32,31 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
             if ui.button("Connect").clicked() {
                 match state.try_start_twitch_worker() {
                     Ok(_) => {
-                        state.settings_channel_name_error = None;
+                        state.settings.channel_name_error = None;
                     }
                     Err(e) => {
-                        state.settings_channel_name_error = Some(e);
+                        state.settings.channel_name_error = Some(e);
                     }
                 }
             }
 
-            if let Some(error) = &state.settings_channel_name_error {
+            if let Some(error) = &state.settings.channel_name_error {
                 ui.label(RichText::new(error).color(Color32::RED));
             }
+        }
+    });
+
+    ui.horizontal(|ui| {
+        ui.label("Account: ");
+
+        if let Some(acc) = &state.twitch_account {
+            ui.label(RichText::new(format!("Logged in as {}", acc.token.login)).color(Color32::GREEN));
+
+            if ui.button("Logout").clicked() {
+                state.unlink_twitch_account();
+            }
+        } else if ui.button("Login").clicked() {
+            state.link_twitch_account();
         }
     });
 

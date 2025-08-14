@@ -1,16 +1,24 @@
 use egui_file_dialog::FileDialog;
-use egui_infinite_scroll::InfiniteScroll;
-use regex::Regex;
-use std::sync::mpsc;
+use egui_toast::{Toast, Toasts};
+use std::{sync::mpsc, time::Duration};
 use tokio::task::AbortHandle;
+use twitch_api::{HelixClient, client::ClientDefault, helix::channels::ChannelInformation};
+use twitch_irc::message::{ClearChatAction, FollowersOnlyMode, IRCMessage, IRCTags, NoticeMessage};
+use twitch_oauth2::{DeviceUserTokenBuilder, Scope, UserToken};
 
 use diesel::{OptionalExtension, RunQueryDsl, SqliteConnection};
 
 use crate::{
     models::{NewSettings, Settings},
     schema::{self},
-    twitch::{events::TwitchEvent, initialize_twitch_worker},
+    twitch::{
+        events::{PrivmsgMessageExt, TwitchEvent},
+        initialize_twitch_worker,
+    },
+    ui::tabs::{chat::ChatState, settings::SettingsState},
 };
+
+const MY_CLIENT_ID: &str = "cqrt6xvgzu8au325zz4zpk6uueg15u";
 
 pub struct AppState {
     pub connected_to_internet: bool,
@@ -19,6 +27,7 @@ pub struct AppState {
     pub db: SqliteConnection,
     pub zoom_factor: f32,
     pub file_dialog: FileDialog,
+    pub toasts: Toasts,
 
     // twtich worker and information to start/restart them
     pub connected_channel: Option<String>,
@@ -27,35 +36,12 @@ pub struct AppState {
     pub diff_rx: mpsc::Receiver<AppStateDiff>,
     pub event_worker_txs: Vec<mpsc::Sender<TwitchEvent>>,
 
-    // chat
-    pub events: InfiniteScroll<TwitchEvent, usize>,
+    // account
+    pub twitch_account: Option<TwitchAccount>,
 
-    pub chat_show_messages_by_broadcaster: bool,
-    pub chat_show_messages_by_moderator: bool,
-    pub chat_show_messages_by_vip: bool,
-    pub chat_show_messages_by_subscriber: bool,
-    pub chat_show_messages_by_regular_viewer: bool,
-
-    pub chat_show_messages: bool,
-    pub chat_show_follows: bool,
-    pub chat_show_subscriptions: bool,
-    pub chat_show_bits: bool,
-
-    pub chat_user_query: String,
-    pub chat_user_query_regex: Option<Regex>,
-    pub chat_user_query_valid: bool,
-    pub chat_user_query_last: String,
-
-    pub chat_message_query: String,
-    pub chat_message_regex: Option<Regex>,
-    pub chat_message_query_valid: bool,
-    pub chat_message_query_last: String,
-
-    pub chat_message_input: String,
-
-    // settings
-    pub setting_channel_name: String,
-    pub settings_channel_name_error: Option<String>,
+    // tabs
+    pub chat: ChatState,
+    pub settings: SettingsState,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -64,97 +50,130 @@ pub enum AppStateDiff {
     InternetDisconnected,
     SaveSettings,
     ResetLayout,
+
+    ShowToast(Toast),
+
+    AccountLinked(HelixClient<'static, reqwest::Client>, UserToken),
+    ChannelInfoUpdated(ChannelInformation),
+    SetSettingsChannelError(String),
+
     NewEvent(TwitchEvent),
+}
+
+pub struct TwitchAccount {
+    pub client: HelixClient<'static, reqwest::Client>,
+    pub token: UserToken,
+    pub channel: Option<ChannelInformation>,
 }
 
 impl AppState {
     pub fn new(
         mut db: SqliteConnection,
+        toasts: Toasts,
         diff_tx: mpsc::Sender<AppStateDiff>,
         diff_rx: mpsc::Receiver<AppStateDiff>,
         event_worker_txs: Vec<mpsc::Sender<TwitchEvent>>,
     ) -> Self {
-        let events = InfiniteScroll::new().start_loader(|cursor, callback| {
-            let page = cursor.unwrap_or(0);
-
-            let items: Vec<TwitchEvent> = vec![];
-
-            callback(Ok((items, Some(page + 1))));
-        });
-
         let stored_settings = Self::get_stored_settings(&mut db);
-        let setting_channel_name = stored_settings.channel.unwrap_or_default();
-        let zoom_factor = stored_settings.zoom_factor.unwrap_or(1.0);
 
-        return Self {
+        let mut app_state = Self {
             connected_to_internet: true,
 
             // global
             db,
+            zoom_factor: 1.0,
             file_dialog: FileDialog::new(),
-            zoom_factor,
+            toasts,
 
             // twitch worker
             connected_channel: None,
             twitch_worker_handle: None,
-            diff_tx,
+            diff_tx: diff_tx.clone(),
             diff_rx,
             event_worker_txs,
 
-            // chat
-            events,
-            chat_show_messages_by_broadcaster: true,
-            chat_show_messages_by_moderator: true,
-            chat_show_messages_by_vip: true,
-            chat_show_messages_by_subscriber: true,
-            chat_show_messages_by_regular_viewer: true,
+            // twitch
+            twitch_account: None,
 
-            chat_show_messages: true,
-            chat_show_follows: true,
-            chat_show_subscriptions: true,
-            chat_show_bits: true,
-
-            chat_user_query: String::new(),
-            chat_user_query_regex: None,
-            chat_user_query_valid: true,
-            chat_user_query_last: String::new(),
-
-            chat_message_query: String::new(),
-            chat_message_regex: None,
-            chat_message_query_valid: true,
-            chat_message_query_last: String::new(),
-
-            chat_message_input: String::new(),
-
-            // settings
-            setting_channel_name,
-            settings_channel_name_error: None,
+            // tabs
+            chat: ChatState::default(),
+            settings: SettingsState::default(),
         };
+
+        let _ = app_state.try_start_twitch_worker();
+
+        if let Some(channel_name) = stored_settings.channel {
+            app_state.settings.channel_name = channel_name;
+        }
+
+        if let Some(refresh_token) = stored_settings.user_refresh_token {
+            tokio::spawn(async move {
+                let client: HelixClient<reqwest::Client> =
+                    twitch_api::HelixClient::with_client(ClientDefault::default_client());
+
+                if let Ok(user_token) =
+                    UserToken::from_refresh_token(&client, refresh_token.into(), MY_CLIENT_ID.into(), None).await
+                {
+                    diff_tx.send(AppStateDiff::AccountLinked(client, user_token)).unwrap();
+                }
+            });
+        }
+
+        if let Some(zoom_factor) = stored_settings.zoom_factor {
+            app_state.zoom_factor = zoom_factor;
+        }
+
+        return app_state;
     }
 
     #[allow(clippy::result_unit_err)]
     pub fn try_start_twitch_worker(&mut self) -> Result<(), String> {
-        if self.setting_channel_name.is_empty() {
+        if self.settings.channel_name.is_empty() {
             return Err(String::from("Empty field."));
         }
-
-        // TODO: api call to check if channel exists
 
         // stop existing worker if it exists
         if let Some(handle) = &self.twitch_worker_handle {
             handle.abort();
-            self.events.items.clear();
+            self.chat.events.items.clear();
         }
 
         // start new worker
         match initialize_twitch_worker(
-            self.setting_channel_name.clone(),
+            self.settings.channel_name.clone(),
             self.event_worker_txs.clone(),
             self.diff_tx.clone(),
         ) {
             Some(handle) => {
                 self.twitch_worker_handle = Some(handle);
-                self.connected_channel = Some(self.setting_channel_name.clone());
+                self.connected_channel = Some(self.settings.channel_name.clone());
+
+                if let Some(account) = &self.twitch_account {
+                    let local_diff_tx = self.diff_tx.clone();
+                    let local_connected_channel = self.connected_channel.clone();
+                    let local_client = account.client.clone();
+                    let local_token = account.token.clone();
+
+                    tokio::spawn(async move {
+                        if let Some(connected_channel) = local_connected_channel
+                            && let Ok(maybe_channel_info) = local_client
+                                .get_channel_from_login(&connected_channel, &local_token)
+                                .await
+                        {
+                            if let Some(channel_info) = maybe_channel_info {
+                                local_diff_tx
+                                    .send(AppStateDiff::ChannelInfoUpdated(channel_info))
+                                    .unwrap();
+                            } else {
+                                local_diff_tx
+                                    .send(AppStateDiff::SetSettingsChannelError(String::from(
+                                        "Channel not found.",
+                                    )))
+                                    .unwrap();
+                            }
+                        }
+                    });
+                }
             }
             None => {
                 return Err(String::from("Invalid format."));
@@ -171,7 +190,47 @@ impl AppState {
 
         self.twitch_worker_handle = None;
         self.connected_channel = None;
-        self.events.items.clear();
+    }
+
+    pub fn link_twitch_account(&mut self) {
+        let local_connected_channel = self.connected_channel.clone();
+        let local_diff_tx = self.diff_tx.clone();
+
+        tokio::spawn(async move {
+            let client: HelixClient<reqwest::Client> = HelixClient::with_client(ClientDefault::default_client());
+            let mut builder = DeviceUserTokenBuilder::new(MY_CLIENT_ID, Scope::all());
+            let code = builder.start(&client).await.unwrap();
+
+            open::that(code.verification_uri.clone()).unwrap();
+
+            let Ok(token) = builder.wait_for_code(&client, tokio::time::sleep).await else {
+                return;
+            };
+
+            local_diff_tx
+                .send(AppStateDiff::AccountLinked(client.clone(), token.clone()))
+                .unwrap();
+
+            if let Some(connected_channel) = local_connected_channel
+                && let Ok(maybe_channel_info) = client.get_channel_from_login(&connected_channel, &token).await
+            {
+                if let Some(channel_info) = maybe_channel_info {
+                    local_diff_tx
+                        .send(AppStateDiff::ChannelInfoUpdated(channel_info))
+                        .unwrap();
+                } else {
+                    local_diff_tx
+                        .send(AppStateDiff::SetSettingsChannelError(String::from(
+                            "Channel not found.",
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+    }
+
+    pub fn unlink_twitch_account(&mut self) {
+        self.twitch_account = None;
     }
 
     pub fn apply_diff(&mut self, diff: AppStateDiff) {
@@ -182,9 +241,122 @@ impl AppState {
             AppStateDiff::InternetDisconnected => {
                 self.connected_to_internet = false;
             }
-            AppStateDiff::NewEvent(event) => {
-                self.events.items.push(event);
+            AppStateDiff::ShowToast(toast) => {
+                self.toasts.add(toast);
             }
+            AppStateDiff::AccountLinked(client, token) => {
+                self.twitch_account = Some(TwitchAccount {
+                    client,
+                    token,
+                    channel: None,
+                });
+            }
+            AppStateDiff::ChannelInfoUpdated(channel_info) => {
+                if let Some(account) = &mut self.twitch_account {
+                    account.channel = Some(channel_info);
+                }
+            }
+            AppStateDiff::SetSettingsChannelError(error) => {
+                self.connected_channel = None;
+                self.settings.channel_name_error = Some(error);
+            }
+            AppStateDiff::NewEvent(event) => match event {
+                TwitchEvent::Ping(_) => {}
+                TwitchEvent::Pong(_) => {}
+                TwitchEvent::RoomState(state) => {
+                    self.chat.is_slow_mode = state.slow_mode;
+                    self.chat.is_emote_only = state.emote_only.unwrap_or(false);
+
+                    // thank you twitch
+                    if let Some(followers_only_mode) = state.follwers_only
+                        && let FollowersOnlyMode::Enabled(follow_duration) = followers_only_mode
+                        && !follow_duration.is_zero()
+                    {
+                        self.chat.is_follow_only = Some(follow_duration);
+                    } else {
+                        self.chat.is_follow_only = None;
+                    }
+
+                    self.chat.is_subscriber_only = state.subscribers_only.unwrap_or(false);
+                }
+                TwitchEvent::ClearMsg(clear_msg) => {
+                    for event in self.chat.events.items.iter_mut().rev() {
+                        if let TwitchEvent::Privmsg(privmsg) = event
+                            && privmsg.message_id == clear_msg.message_id
+                        {
+                            privmsg.mark_deleted();
+                            break;
+                        }
+                    }
+                }
+                TwitchEvent::ClearChat(clear_chat) => match clear_chat.action {
+                    ClearChatAction::ChatCleared => {} // ignore
+                    // low duration timeouts are used to clear messages usually
+                    ClearChatAction::UserTimedOut {
+                        user_id,
+                        timeout_length,
+                        ..
+                    } if timeout_length.lt(&Duration::from_secs(5)) => {
+                        for event in self.chat.events.items.iter_mut().rev() {
+                            if let TwitchEvent::Privmsg(privmsg) = event
+                                && privmsg.sender.id == user_id
+                            {
+                                privmsg.mark_deleted();
+                            }
+                        }
+                    }
+                    ClearChatAction::UserTimedOut {
+                        user_login,
+                        user_id,
+                        timeout_length,
+                    } => {
+                        for event in self.chat.events.items.iter_mut().rev() {
+                            if let TwitchEvent::Privmsg(privmsg) = event
+                                && privmsg.sender.id == user_id
+                            {
+                                privmsg.mark_timeouted();
+                            }
+                        }
+                        self.chat.events.items.push(TwitchEvent::Notice(NoticeMessage {
+                            channel_login: None,
+                            message_id: None,
+                            message_text: format!(
+                                "{user_login} has been timed out for {} seconds.",
+                                timeout_length.as_secs()
+                            ),
+                            source: IRCMessage {
+                                tags: IRCTags::default(),
+                                prefix: None,
+                                command: String::from("NOTICE"),
+                                params: Vec::new(),
+                            },
+                        }));
+                    }
+                    ClearChatAction::UserBanned { user_login, user_id } => {
+                        for event in self.chat.events.items.iter_mut().rev() {
+                            if let TwitchEvent::Privmsg(privmsg) = event
+                                && privmsg.sender.id == user_id
+                            {
+                                privmsg.mark_banned();
+                            }
+                        }
+                        self.chat.events.items.push(TwitchEvent::Notice(NoticeMessage {
+                            channel_login: None,
+                            message_id: None,
+                            message_text: format!("{user_login} has been banned."),
+                            source: IRCMessage {
+                                tags: IRCTags::default(),
+                                prefix: None,
+                                command: String::from("NOTICE"),
+                                params: Vec::new(),
+                            },
+                        }));
+                    }
+                },
+                event => {
+                    self.chat.events.items.push(event);
+                }
+            },
             _ => {}
         }
     }
@@ -214,7 +386,12 @@ impl AppState {
             .unwrap();
         diesel::insert_into(schema::settings::table)
             .values(NewSettings {
-                channel: Some(self.setting_channel_name.clone()),
+                channel: Some(self.settings.channel_name.clone()),
+                user_refresh_token: self
+                    .twitch_account
+                    .as_ref()
+                    .and_then(|acc| acc.token.refresh_token.clone())
+                    .map(|token| token.take()),
                 tree: Some(tree_str),
                 zoom_factor: Some(self.zoom_factor),
             })

@@ -2,6 +2,7 @@ use std::{net::TcpStream, sync::mpsc, time::Duration};
 
 use eframe::CreationContext;
 use egui_dock::DockState;
+use egui_toast::Toasts;
 use strum::IntoEnumIterator;
 
 use crate::{
@@ -24,6 +25,7 @@ impl App {
         let db = models::initialize_database();
 
         let mut tree = DockState::new(Tabs::iter().collect());
+        let toasts = Toasts::new();
 
         let (state_diff_tx, state_diff_rx) = mpsc::channel();
         let mut event_worker_txs = vec![];
@@ -37,8 +39,7 @@ impl App {
 
         Self::start_app_timers(state_diff_tx.clone());
 
-        let mut app_state = AppState::new(db, state_diff_tx, state_diff_rx, event_worker_txs);
-        let _ = app_state.try_start_twitch_worker();
+        let mut app_state = AppState::new(db, toasts, state_diff_tx, state_diff_rx, event_worker_txs);
 
         let settings = AppState::get_stored_settings(&mut app_state.db);
 

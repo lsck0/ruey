@@ -11,76 +11,76 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
             ui.menu_button("Show", |ui| {
                 ui.label("Chatters");
                 if ui
-                    .selectable_label(state.chat_show_messages_by_broadcaster, "Broadcaster")
+                    .selectable_label(state.chat.show_messages_by_broadcaster, "Broadcaster")
                     .clicked()
                 {
-                    state.chat_show_messages_by_broadcaster ^= true;
+                    state.chat.show_messages_by_broadcaster ^= true;
                 }
                 if ui
-                    .selectable_label(state.chat_show_messages_by_moderator, "Moderators")
+                    .selectable_label(state.chat.show_messages_by_moderator, "Moderators")
                     .clicked()
                 {
-                    state.chat_show_messages_by_moderator ^= true;
+                    state.chat.show_messages_by_moderator ^= true;
                 }
-                if ui.selectable_label(state.chat_show_messages_by_vip, "VIPs").clicked() {
-                    state.chat_show_messages_by_vip ^= true;
-                }
-                if ui
-                    .selectable_label(state.chat_show_messages_by_subscriber, "Subscribers")
-                    .clicked()
-                {
-                    state.chat_show_messages_by_subscriber ^= true;
+                if ui.selectable_label(state.chat.show_messages_by_vip, "VIPs").clicked() {
+                    state.chat.show_messages_by_vip ^= true;
                 }
                 if ui
-                    .selectable_label(state.chat_show_messages_by_regular_viewer, "Viewers")
+                    .selectable_label(state.chat.show_messages_by_subscriber, "Subscribers")
                     .clicked()
                 {
-                    state.chat_show_messages_by_regular_viewer ^= true;
+                    state.chat.show_messages_by_subscriber ^= true;
+                }
+                if ui
+                    .selectable_label(state.chat.show_messages_by_regular_viewer, "Viewers")
+                    .clicked()
+                {
+                    state.chat.show_messages_by_regular_viewer ^= true;
                 }
 
                 ui.separator();
                 ui.label("Kinds");
 
-                if ui.selectable_label(state.chat_show_messages, "Messages").clicked() {
-                    state.chat_show_messages ^= true;
+                if ui.selectable_label(state.chat.show_messages, "Messages").clicked() {
+                    state.chat.show_messages ^= true;
                 }
-                if ui.selectable_label(state.chat_show_follows, "Follows").clicked() {
-                    state.chat_show_follows ^= true;
+                if ui.selectable_label(state.chat.show_follows, "Follows").clicked() {
+                    state.chat.show_follows ^= true;
                 }
                 if ui
-                    .selectable_label(state.chat_show_subscriptions, "Subscriptions")
+                    .selectable_label(state.chat.show_subscriptions, "Subscriptions")
                     .clicked()
                 {
-                    state.chat_show_subscriptions ^= true;
+                    state.chat.show_subscriptions ^= true;
                 }
-                if ui.selectable_label(state.chat_show_bits, "Bits").clicked() {
-                    state.chat_show_bits ^= true;
+                if ui.selectable_label(state.chat.show_bits, "Bits").clicked() {
+                    state.chat.show_bits ^= true;
                 }
             });
         });
 
         flex.add_ui(item().grow(1.0), |ui| {
-            let mut user_query_input = TextEdit::singleline(&mut state.chat_user_query)
+            let mut user_query_input = TextEdit::singleline(&mut state.chat.user_query)
                 .hint_text("Name Search")
                 .char_limit(75)
                 .desired_width(120.0);
-            if !state.chat_user_query_valid {
+            if !state.chat.user_query_valid {
                 user_query_input = user_query_input.text_color(egui::Color32::RED);
             }
             user_query_input.show(ui);
 
-            let mut message_query_input = TextEdit::singleline(&mut state.chat_message_query)
+            let mut message_query_input = TextEdit::singleline(&mut state.chat.message_query)
                 .hint_text("Message Search")
                 .char_limit(75)
                 .desired_width(120.0);
-            if !state.chat_message_query_valid {
+            if !state.chat.message_query_valid {
                 message_query_input = message_query_input.text_color(egui::Color32::RED);
             }
             message_query_input.show(ui);
 
             if ui.button("Clear Search").clicked() {
-                state.chat_user_query.clear();
-                state.chat_message_query.clear();
+                state.chat.user_query.clear();
+                state.chat.message_query.clear();
             }
         });
 
@@ -92,9 +92,9 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
     // chat log saving, i failed twice moving this to a worker thread already
     if let Some(path) = state.file_dialog.update(ui.ctx()).picked() {
         let mut buffer = String::new();
-        buffer.reserve(state.events.items.len() * size_of::<TwitchEvent>());
+        buffer.reserve(state.chat.events.items.len() * size_of::<TwitchEvent>());
 
-        for event in state.events.items.iter() {
+        for event in state.chat.events.items.iter() {
             render_event_for_log(&mut buffer, event);
         }
 

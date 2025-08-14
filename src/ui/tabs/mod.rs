@@ -1,5 +1,5 @@
 pub mod chat;
-mod settings;
+pub mod settings;
 
 use eframe::egui;
 use egui_commonmark::{CommonMarkCache, commonmark_str};

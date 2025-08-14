@@ -19,6 +19,7 @@ pub fn initialize_database() -> SqliteConnection {
 pub struct Settings {
     pub id: i32,
     pub channel: Option<String>,
+    pub user_refresh_token: Option<String>,
     pub tree: Option<String>,
     pub zoom_factor: Option<f32>,
 }
@@ -28,6 +29,7 @@ pub struct Settings {
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct NewSettings {
     pub channel: Option<String>,
+    pub user_refresh_token: Option<String>,
     pub tree: Option<String>,
     pub zoom_factor: Option<f32>,
 }

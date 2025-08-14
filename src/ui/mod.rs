@@ -49,6 +49,9 @@ impl eframe::App for App {
             });
         }
 
+        // toasts
+        self.state.toasts.show(ctx);
+
         ctx.request_repaint();
     }
 }
