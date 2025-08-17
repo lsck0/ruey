@@ -1,13 +1,54 @@
 use std::fs;
 
-use crate::{state::AppState, twitch::events::TwitchEvent, ui::tabs::chat::message::render_event_for_log};
+use crate::{
+    state::AppState,
+    twitch::{api::twitch_delete_all_messages, types::TwitchEvent},
+    ui::tabs::chat::message::render_event_for_log,
+};
 use eframe::egui::{self, Button, TextEdit, Ui};
 use egui_flex::{Flex, item};
 use tracing::warn;
 
 pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
     Flex::horizontal().w_full().show(ui, |flex| {
+        // TODO: implement the apis for these buttons
         flex.add_ui(item(), |ui| {
+            if let Some(account) = &state.twitch_account
+                && let Some(channel) = &state.connected_channel_info
+            {
+                ui.menu_button("Chat Settings", |ui| {
+                    if ui.button("Clear Chat").clicked() {
+                        twitch_delete_all_messages(&state.diff_tx, account, channel);
+                    }
+
+                    if ui.button("Toggle Emote-Only Chat").clicked() {}
+
+                    ui.menu_button("Follow-Only Chat", |ui| {
+                        if ui.button("Off").clicked() {}
+
+                        ui.separator();
+
+                        if ui.button("On").clicked() {}
+
+                        if ui.button("10 Minutes").clicked() {}
+
+                        if ui.button("30 Minutes").clicked() {}
+
+                        if ui.button("1 Hour").clicked() {}
+
+                        if ui.button("1 Day").clicked() {}
+
+                        if ui.button("1 Week").clicked() {}
+
+                        if ui.button("1 Month").clicked() {}
+
+                        if ui.button("3 Months").clicked() {}
+                    });
+
+                    if ui.button("Toggle Sub-Only Chat").clicked() {}
+                });
+            }
+
             ui.menu_button("Show", |ui| {
                 ui.label("Chatters");
                 if ui
@@ -16,21 +57,25 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                 {
                     state.chat.show_messages_by_broadcaster ^= true;
                 }
+
                 if ui
                     .selectable_label(state.chat.show_messages_by_moderator, "Moderators")
                     .clicked()
                 {
                     state.chat.show_messages_by_moderator ^= true;
                 }
+
                 if ui.selectable_label(state.chat.show_messages_by_vip, "VIPs").clicked() {
                     state.chat.show_messages_by_vip ^= true;
                 }
+
                 if ui
                     .selectable_label(state.chat.show_messages_by_subscriber, "Subscribers")
                     .clicked()
                 {
                     state.chat.show_messages_by_subscriber ^= true;
                 }
+
                 if ui
                     .selectable_label(state.chat.show_messages_by_regular_viewer, "Viewers")
                     .clicked()
@@ -41,20 +86,31 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                 ui.separator();
                 ui.label("Kinds");
 
+                if ui.selectable_label(state.chat.show_notices, "Notices").clicked() {
+                    state.chat.show_notices ^= true;
+                }
+
                 if ui.selectable_label(state.chat.show_messages, "Messages").clicked() {
                     state.chat.show_messages ^= true;
                 }
+
                 if ui.selectable_label(state.chat.show_follows, "Follows").clicked() {
                     state.chat.show_follows ^= true;
                 }
+
                 if ui
                     .selectable_label(state.chat.show_subscriptions, "Subscriptions")
                     .clicked()
                 {
                     state.chat.show_subscriptions ^= true;
                 }
+
                 if ui.selectable_label(state.chat.show_bits, "Bits").clicked() {
                     state.chat.show_bits ^= true;
+                }
+
+                if ui.selectable_label(state.chat.show_raids, "Raids").clicked() {
+                    state.chat.show_raids ^= true;
                 }
             });
         });

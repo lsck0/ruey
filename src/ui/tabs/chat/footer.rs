@@ -1,4 +1,8 @@
-use crate::state::AppState;
+use crate::{
+    state::AppState,
+    twitch::api::twitch_send_message,
+    ui::util::{show_error_toast, show_not_logged_in_toast},
+};
 use eframe::egui::{self, Button, TextEdit, Ui};
 use egui_flex::{Flex, item};
 
@@ -13,28 +17,24 @@ pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
                 .char_limit(255),
         );
 
-        #[allow(clippy::collapsible_if)]
-        if flex.add(item(), Button::new("Send")).clicked()
-            || (enter_pressed && input.lost_focus()) && !state.chat.message_input.is_empty()
+        if (flex.add(item(), Button::new("Send")).clicked() || (enter_pressed && input.lost_focus()))
+            && !state.chat.message_input.is_empty()
         {
-            if let Some(account) = &state.twitch_account
-                && let Some(channel) = &account.channel
-            {
-                let message = state.chat.message_input.trim().to_string();
-                let token = account.token.clone();
-                let client = account.client.clone();
-                let broadcaster_id = channel.broadcaster_id.clone();
-                let user_id = account.token.user_id.clone();
+            let Some(channel) = &state.connected_channel_info else {
+                show_error_toast(&state.diff_tx, "You are not connected to a channel.");
+                return;
+            };
 
-                tokio::spawn(async move {
-                    let _ = client
-                        .send_chat_message(broadcaster_id, user_id, &*message, &token)
-                        .await;
-                });
+            let Some(account) = &state.twitch_account else {
+                show_not_logged_in_toast(&state.diff_tx);
+                return;
+            };
 
-                state.chat.message_input.clear();
-                input.request_focus();
-            }
+            // TODO: allow for /ban @bla etc, maybe even with a menu to show possible commands?
+
+            twitch_send_message(&state.diff_tx, account, channel, &state.chat.message_input);
+            state.chat.message_input.clear();
+            input.request_focus();
         }
     });
 }

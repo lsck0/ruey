@@ -16,11 +16,11 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
     ui.horizontal(|ui| {
         ui.label("Channel:");
 
-        if let Some(channel) = &state.connected_channel {
+        if let Some(channel) = &state.connected_channel_name {
             ui.label(RichText::new(channel).color(Color32::GREEN));
 
             if ui.button("Disconnect").clicked() {
-                state.stop_twitch_worker();
+                state.stop_twitch_irc_worker();
             }
         } else {
             let mut channel_edit = TextEdit::singleline(&mut state.settings.channel_name).char_limit(25);
@@ -30,14 +30,7 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
             ui.add(channel_edit);
 
             if ui.button("Connect").clicked() {
-                match state.try_start_twitch_worker() {
-                    Ok(_) => {
-                        state.settings.channel_name_error = None;
-                    }
-                    Err(e) => {
-                        state.settings.channel_name_error = Some(e);
-                    }
-                }
+                state.start_twitch_irc_worker();
             }
 
             if let Some(error) = &state.settings.channel_name_error {
@@ -83,7 +76,10 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
     });
 
     if ui.button("Reset Layout").clicked() {
-        state.diff_tx.send(AppStateDiff::ResetLayout).unwrap();
+        state
+            .diff_tx
+            .send(AppStateDiff::ResetLayout)
+            .expect("Failed to send reset layout diff");
     }
 
     ui.separator();
@@ -92,7 +88,10 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
 
     ui.horizontal(|ui| {
         if ui.button("Persist Settings").clicked() {
-            state.diff_tx.send(AppStateDiff::SaveSettings).unwrap();
+            state
+                .diff_tx
+                .send(AppStateDiff::SaveSettings)
+                .expect("Failed to send save settings diff");
         }
 
         ui.label("(This happens automatically every 30 seconds)")

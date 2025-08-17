@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::{
     state::AppState,
-    twitch::events::TwitchEvent,
+    twitch::types::TwitchEvent,
     ui::tabs::chat::{footer::render_chat_footer, header::render_chat_header, history::render_chat_history},
 };
 use eframe::egui;
@@ -28,10 +28,12 @@ pub struct ChatState {
     pub show_messages_by_subscriber: bool,
     pub show_messages_by_regular_viewer: bool,
 
+    pub show_notices: bool,
     pub show_messages: bool,
     pub show_follows: bool,
     pub show_subscriptions: bool,
     pub show_bits: bool,
+    pub show_raids: bool,
 
     pub user_query: String,
     pub user_query_regex: Option<Regex>,
@@ -69,10 +71,12 @@ impl Default for ChatState {
             show_messages_by_subscriber: true,
             show_messages_by_regular_viewer: true,
 
+            show_notices: true,
             show_messages: true,
             show_follows: true,
             show_subscriptions: true,
             show_bits: true,
+            show_raids: true,
 
             user_query: String::new(),
             user_query_regex: None,

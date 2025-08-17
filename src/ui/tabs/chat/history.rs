@@ -1,12 +1,52 @@
 use crate::{
     state::AppState,
-    twitch::events::{PrivmsgMessageExt, TwitchEvent},
+    twitch::types::{PrivmsgMessageExt, TwitchEvent},
     ui::tabs::chat::message::render_chat_message,
 };
-use eframe::egui::{ScrollArea, Ui, scroll_area::ScrollSource};
+use eframe::egui::{self, Align2, Area, ScrollArea, Ui, scroll_area::ScrollSource};
 
 pub fn render_chat_history(ui: &mut Ui, state: &mut AppState) {
     set_event_filter(state);
+
+    Area::new("chat_state".into())
+        .anchor(Align2::RIGHT_TOP, egui::vec2(0.0, 60.0))
+        .show(ui.ctx(), |ui| {
+            ui.set_width(250.0);
+            ui.set_height(200.0);
+
+            if let Some(duration) = state.chat.is_slow_mode
+                && duration.as_secs() > 0
+            {
+                ui.label(format!("Chat is in slow-only mode ({} seconds).", duration.as_secs()));
+            }
+
+            if state.chat.is_emote_only {
+                ui.label("Chat is in emote-only mode.");
+            }
+
+            if let Some(duration) = state.chat.is_follow_only {
+                let seconds = duration.as_secs();
+                let minutes = seconds / 60;
+                let hours = minutes / 60;
+                let days = hours / 24;
+
+                if days > 0 {
+                    ui.label(format!("Chat is in follower-only mode (> {} days).", days));
+                } else if hours > 0 {
+                    ui.label(format!("Chat is in follower-only mode (> {} hours).", hours));
+                } else if minutes > 0 {
+                    ui.label(format!("Chat is in follower-only mode (> {} minutes).", minutes));
+                } else if seconds > 0 {
+                    ui.label(format!("Chat is in follower-only mode (> {} seconds).", seconds));
+                } else {
+                    ui.label("Chat is in follower-only mode.");
+                }
+            }
+
+            if state.chat.is_subscriber_only {
+                ui.label("Chat is in subscriber-only mode.");
+            }
+        });
 
     ScrollArea::vertical()
         .max_height(ui.available_height() - 35.0)
@@ -27,12 +67,20 @@ pub fn render_chat_history(ui: &mut Ui, state: &mut AppState) {
                     ui.label(notice.message_text.trim());
                 }
                 TwitchEvent::Privmsg(msg) => {
-                    let logged_in_user_name = if let Some(account) = &state.twitch_account {
-                        Some(account.token.login.clone().to_string())
-                    } else {
-                        None
-                    };
-                    render_chat_message(ui, &mut state.chat.user_query, msg, logged_in_user_name);
+                    let logged_in_user_name = state
+                        .twitch_account
+                        .as_ref()
+                        .map(|account| account.token.login.clone().to_string());
+
+                    render_chat_message(
+                        ui,
+                        msg,
+                        &state.diff_tx,
+                        &state.twitch_account,
+                        &state.connected_channel_info,
+                        &mut state.chat.user_query,
+                        logged_in_user_name,
+                    );
                 }
                 _ => {}
             });
@@ -40,6 +88,7 @@ pub fn render_chat_history(ui: &mut Ui, state: &mut AppState) {
 }
 
 fn set_event_filter(state: &mut AppState) {
+    let local_chat_show_notices = state.chat.show_notices;
     let local_chat_show_messages = state.chat.show_messages;
     let local_chat_show_messages_by_broadcaster = state.chat.show_messages_by_broadcaster;
     let local_chat_show_messages_by_moderator = state.chat.show_messages_by_moderator;
@@ -51,7 +100,7 @@ fn set_event_filter(state: &mut AppState) {
 
     state.chat.events.set_filter(move |event| match event {
         TwitchEvent::Join(_) => true,
-        TwitchEvent::Notice(_) => true,
+        TwitchEvent::Notice(_) => local_chat_show_notices,
         TwitchEvent::Privmsg(msg) => {
             if !local_chat_show_messages {
                 return false;

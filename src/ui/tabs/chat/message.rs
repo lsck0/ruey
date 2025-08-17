@@ -1,13 +1,28 @@
-use crate::twitch::events::{PrivmsgMessageExt, TwitchEvent};
+use std::{sync::mpsc, time::Duration};
+
+use crate::{
+    state::{AppStateDiff, TwitchAccount},
+    twitch::{
+        api::{
+            twitch_ban_user, twitch_delete_message, twitch_mod_user, twitch_shoutout_user, twitch_timeout_user,
+            twitch_unban_user, twitch_unmod_user, twitch_vip_user,
+        },
+        types::{PrivmsgMessageExt, TwitchEvent},
+    },
+};
 use chrono::Local;
 use eframe::egui::{self, Color32, Popup, RichText, Ui};
 use linkify::LinkFinder;
+use twitch_api::helix::channels::ChannelInformation;
 use twitch_irc::message::PrivmsgMessage;
 
 pub fn render_chat_message(
     ui: &mut Ui,
-    chat_user_query: &mut String,
     message: &PrivmsgMessage,
+    diff_tx: &mpsc::Sender<AppStateDiff>,
+    account: &Option<TwitchAccount>,
+    channel: &Option<ChannelInformation>,
+    chat_user_query: &mut String,
     logged_in_user_name: Option<String>,
 ) {
     ui.horizontal_wrapped(|ui| {
@@ -76,79 +91,277 @@ pub fn render_chat_message(
 
         // sender menu
         Popup::menu(&sender).show(|ui| {
-            ui.colored_label(egui::Color32::WHITE, message.sender.name.clone());
-            ui.separator();
+            ui.set_width(125.0);
 
-            // TODO: implement the buttons
+            ui.colored_label(egui::Color32::WHITE, format!("User: {}", message.sender.name));
+            ui.separator();
 
             if ui.button("History").clicked() {
                 *chat_user_query = message.sender.name.clone();
                 ui.close();
             }
 
-            if ui.button("Delete Message").clicked() {
+            if ui.button("Copy Username").clicked() {
+                ui.ctx().copy_text(message.sender.name.clone());
                 ui.close();
             }
 
-            if ui.button("Delete All Messages").clicked() {
+            if ui.button("Copy Message").clicked() {
+                ui.ctx().copy_text(message.message_text.clone());
                 ui.close();
             }
 
-            ui.menu_button("Timeout", |ui| {
-                if ui.button("1 minute").clicked() {
-                    ui.close();
-                }
-                if ui.button("5 minutes").clicked() {
-                    ui.close();
-                }
-                if ui.button("10 minutes").clicked() {
-                    ui.close();
-                }
-                if ui.button("15 minutes").clicked() {
-                    ui.close();
-                }
-                if ui.button("30 minutes").clicked() {
-                    ui.close();
-                }
-                if ui.button("45 minutes").clicked() {
-                    ui.close();
-                }
-                if ui.button("1 hour").clicked() {
-                    ui.close();
-                }
-                if ui.button("2 hours").clicked() {
-                    ui.close();
-                }
-                if ui.button("3 hours").clicked() {
-                    ui.close();
-                }
-                if ui.button("6 hours").clicked() {
-                    ui.close();
-                }
-                if ui.button("9 hours").clicked() {
-                    ui.close();
-                }
-                if ui.button("12 hours").clicked() {
-                    ui.close();
-                }
-                if ui.button("1 day").clicked() {
-                    ui.close();
-                }
-                if ui.button("2 days").clicked() {
-                    ui.close();
-                }
-                if ui.button("3 days").clicked() {
-                    ui.close();
-                }
-                if ui.button("1 week").clicked() {
-                    ui.close();
-                }
-                if ui.button("1 month").clicked() {
-                    ui.close();
-                }
-            });
+            let Some(account) = account else {
+                return;
+            };
+            let Some(channel) = channel else {
+                return;
+            };
 
-            if ui.button("Ban").clicked() {
+            ui.separator();
+
+            if !message.is_deleted()
+                && !message.is_timeouted()
+                && !message.is_banned()
+                && ui.button("Delete Message").clicked()
+            {
+                twitch_delete_message(diff_tx, account, channel, &message.message_id);
+                ui.close();
+            }
+
+            if message.is_by_broadcaster() {
+                return;
+            }
+
+            if !message.is_timeouted() && !message.is_banned() && ui.button("Delete All Messages").clicked() {
+                twitch_timeout_user(diff_tx, account, channel, &message.sender.name, Duration::from_secs(1));
+                ui.close();
+            }
+
+            if !message.is_timeouted() && !message.is_banned() {
+                ui.menu_button("Timeout", |ui| {
+                    if ui.button("1 minute").clicked() {
+                        twitch_timeout_user(diff_tx, account, channel, &message.sender.name, Duration::from_secs(60));
+                        ui.close();
+                    }
+
+                    if ui.button("5 minutes").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(5 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("10 minutes").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(10 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("15 minutes").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(15 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("30 minutes").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(30 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("45 minutes").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(45 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("1 hour").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("2 hours").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(2 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("3 hours").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(3 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("6 hours").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(6 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("9 hours").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(9 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("12 hours").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(12 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("1 day").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(24 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("2 days").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(2 * 24 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("3 days").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(3 * 24 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("1 week").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(7 * 24 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+
+                    if ui.button("2 weeks").clicked() {
+                        twitch_timeout_user(
+                            diff_tx,
+                            account,
+                            channel,
+                            &message.sender.name,
+                            Duration::from_secs(14 * 24 * 60 * 60),
+                        );
+                        ui.close();
+                    }
+                });
+            }
+
+            if message.is_timeouted() && !message.is_banned() && ui.button("Untimeout").clicked() {
+                twitch_unban_user(diff_tx, account, channel, &message.sender.name);
+                ui.close();
+            }
+
+            if !message.is_banned() && ui.button("Ban").clicked() {
+                twitch_ban_user(diff_tx, account, channel, &message.sender.name);
+                ui.close();
+            }
+
+            if message.is_banned() && ui.button("Unban").clicked() {
+                twitch_unban_user(diff_tx, account, channel, &message.sender.name);
+                ui.close();
+            }
+
+            ui.separator();
+
+            if ui.button("Shoutout").clicked() {
+                twitch_shoutout_user(diff_tx, account, channel, &message.sender.name);
+                ui.close();
+            }
+
+            if !message.is_by_vip() && ui.button("Make VIP").clicked() {
+                twitch_vip_user(diff_tx, account, channel, &message.sender.name);
+                ui.close();
+            }
+
+            if message.is_by_vip() && ui.button("Remove VIP").clicked() {
+                twitch_vip_user(diff_tx, account, channel, &message.sender.name);
+                ui.close();
+            }
+
+            if !message.is_by_mod() && ui.button("Make Mod").clicked() {
+                twitch_mod_user(diff_tx, account, channel, &message.sender.name);
+                ui.close();
+            }
+
+            if message.is_by_mod() && ui.button("Remove Mod").clicked() {
+                twitch_unmod_user(diff_tx, account, channel, &message.sender.name);
                 ui.close();
             }
         });

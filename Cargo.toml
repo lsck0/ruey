@@ -2,6 +2,7 @@
 name = "ruey"
 version = "0.0.0"
 edition = "2024"
+build = "build/build.rs"
 
 [profile.release]
 codegen-units = 1
@@ -12,18 +13,25 @@ panic = "abort"
 
 [dependencies]
 chrono = "0.4"
+futures-util = "0.3"
 linkify = "0.10"
 open = "5.3"
 regex = "1.11"
-reqwest = "0.12"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 strum = { version = "0.27", features = ["derive"] }
-tokio = { version = "1.47", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
+tokio = { version = "1.47", features = ["full"] }
+tokio-tungstenite = "0.27"
+tungstenite = "0.27"
+reqwest = "0.12"
+
+serde = { version = "1.0", features = ["derive"] }
+serde-binary = "0.5"
+serde_json = "1.0"
+
 diesel = { version = "2.2", features = [
+    "r2d2",
     "sqlite",
     "returning_clauses_for_sqlite_3_35",
 ] }
@@ -41,7 +49,6 @@ egui_commonmark = { version = "0.21", features = [
 egui_dock = { version = "0.17", features = ["serde"] }
 egui_flex = "0.4"
 egui_infinite_scroll = "0.8"
-egui_logger = "0.8"
 
 twitch-irc = "5.0"
 twitch_api = { version = "0.7", features = ["_all"] }
