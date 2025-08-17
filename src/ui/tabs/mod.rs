@@ -11,15 +11,14 @@ use crate::{
     ui::tabs::{chat::show_chat_ui, settings::show_settings_ui},
 };
 
-#[derive(Clone, Display, EnumString, EnumIter, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Display, EnumIter, EnumString)]
 pub enum Tabs {
     Chat,
     Stats,
-    Commands,
-    Triggers,
-    Events,
-    Settings,
+    Actions,
     Logs,
+    Database,
+    Settings,
     Docs,
 }
 
@@ -37,11 +36,10 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
         match tab {
             Tabs::Chat => show_chat_ui(ui, self.state),
+            Tabs::Settings => show_settings_ui(ui, self.state),
             Tabs::Docs => {
                 commonmark_str!(ui, &mut CommonMarkCache::default(), "./assets/Docs.md");
             }
-            Tabs::Logs => egui_logger::logger_ui().show(ui),
-            Tabs::Settings => show_settings_ui(ui, self.state),
             _ => {
                 ui.label("unimplemented");
             }

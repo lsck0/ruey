@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::{state::AppState, twitch::events::TwitchEvent, ui::tabs::chat::message::render_event_for_log};
+use crate::{state::AppState, twitch::types::TwitchEvent, ui::tabs::chat::message::render_event_for_log};
 use eframe::egui::{self, Button, TextEdit, Ui};
 use egui_flex::{Flex, item};
 use tracing::warn;

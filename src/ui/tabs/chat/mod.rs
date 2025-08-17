@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::{
     state::AppState,
-    twitch::events::TwitchEvent,
+    twitch::types::TwitchEvent,
     ui::tabs::chat::{footer::render_chat_footer, header::render_chat_header, history::render_chat_history},
 };
 use eframe::egui;

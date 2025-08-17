@@ -1,15 +1,16 @@
 #![allow(clippy::needless_return)]
+#![forbid(clippy::unwrap_used)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-pub mod actions;
 pub mod app;
+pub mod engine;
 pub mod models;
 pub mod schema;
 pub mod state;
-pub mod stats;
 pub mod twitch;
 pub mod ui;
 pub mod window;
+pub mod workers;
 
 use eframe::{EframePumpStatus, UserEvent};
 use std::io;
@@ -30,7 +31,9 @@ fn main() -> io::Result<()> {
         .with(fmt::layer().with_writer(std::io::stdout))
         .init();
 
-    let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event().build().unwrap();
+    let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event()
+        .build()
+        .expect("Failed to create event loop");
     egui_eventloop.set_control_flow(ControlFlow::Poll);
 
     let mut egui_app = eframe::create_native(
@@ -43,9 +46,9 @@ fn main() -> io::Result<()> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
-        .unwrap();
+        .expect("Failed to create Tokio runtime");
 
-    LocalSet::new().block_on(&runtime, async {
+    return LocalSet::new().block_on(&runtime, async {
         let eventloop_fd = AsyncFd::new(egui_eventloop.as_raw_fd())?;
         let mut control_flow = ControlFlow::Poll;
 
@@ -73,7 +76,7 @@ fn main() -> io::Result<()> {
         }
 
         Ok::<_, io::Error>(())
-    })
+    });
 }
 
 #[cfg(windows)]
@@ -83,7 +86,9 @@ fn main() -> io::Result<()> {
         .with(fmt::layer().with_writer(std::io::stdout))
         .init();
 
-    let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event().build().unwrap();
+    let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event()
+        .build()
+        .expect("Failed to create event loop");
     egui_eventloop.set_control_flow(ControlFlow::Wait);
 
     let mut egui_app = eframe::create_native(
@@ -96,9 +101,9 @@ fn main() -> io::Result<()> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
-        .unwrap();
+        .expect("Failed to create Tokio runtime");
 
-    LocalSet::new().block_on(&runtime, async {
+    return LocalSet::new().block_on(&runtime, async {
         loop {
             match egui_app.pump_eframe_app(&mut egui_eventloop, None) {
                 EframePumpStatus::Continue(_) => {}
@@ -110,5 +115,5 @@ fn main() -> io::Result<()> {
         }
 
         Ok::<_, io::Error>(())
-    })
+    });
 }

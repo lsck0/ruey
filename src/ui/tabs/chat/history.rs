@@ -1,6 +1,6 @@
 use crate::{
     state::AppState,
-    twitch::events::{PrivmsgMessageExt, TwitchEvent},
+    twitch::types::{PrivmsgMessageExt, TwitchEvent},
     ui::tabs::chat::message::render_chat_message,
 };
 use eframe::egui::{ScrollArea, Ui, scroll_area::ScrollSource};
@@ -27,11 +27,10 @@ pub fn render_chat_history(ui: &mut Ui, state: &mut AppState) {
                     ui.label(notice.message_text.trim());
                 }
                 TwitchEvent::Privmsg(msg) => {
-                    let logged_in_user_name = if let Some(account) = &state.twitch_account {
-                        Some(account.token.login.clone().to_string())
-                    } else {
-                        None
-                    };
+                    let logged_in_user_name = state
+                        .twitch_account
+                        .as_ref()
+                        .map(|account| account.token.login.clone().to_string());
                     render_chat_message(ui, &mut state.chat.user_query, msg, logged_in_user_name);
                 }
                 _ => {}

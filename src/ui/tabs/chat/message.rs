@@ -1,4 +1,4 @@
-use crate::twitch::events::{PrivmsgMessageExt, TwitchEvent};
+use crate::twitch::types::{PrivmsgMessageExt, TwitchEvent};
 use chrono::Local;
 use eframe::egui::{self, Color32, Popup, RichText, Ui};
 use linkify::LinkFinder;
