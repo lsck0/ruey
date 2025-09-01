@@ -1,10 +1,7 @@
-use crate::{
-    state::AppState,
-    twitch::api::twitch_send_message,
-    ui::util::{show_error_toast, show_not_logged_in_toast},
-};
+use crate::{state::AppState, twitch::api::twitch_send_message, ui::util::show_toast};
 use eframe::egui::{self, Button, TextEdit, Ui};
 use egui_flex::{Flex, item};
+use egui_toast::ToastKind;
 
 pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
     let enter_pressed = ui.input(|i| i.key_pressed(egui::Key::Enter));
@@ -21,12 +18,12 @@ pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
             && !state.chat.message_input.is_empty()
         {
             let Some(channel) = &state.connected_channel_info else {
-                show_error_toast(&state.diff_tx, "You are not connected to a channel.");
+                show_toast(&state.diff_tx, ToastKind::Error, "You are not connected to a channel");
                 return;
             };
 
             let Some(account) = &state.twitch_account else {
-                show_not_logged_in_toast(&state.diff_tx);
+                show_toast(&state.diff_tx, ToastKind::Error, "You are not logged in.");
                 return;
             };
 

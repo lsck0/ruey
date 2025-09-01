@@ -13,7 +13,10 @@ use crate::{
         api::{twitch_get_channel_from_login, twitch_link_account, twitch_relink_account},
         types::{PrivmsgMessageExt, TwitchEvent},
     },
-    ui::tabs::{chat::ChatState, settings::SettingsState},
+    ui::{
+        tabs::{chat::ChatState, settings::SettingsState},
+        util::show_toast,
+    },
     workers::twitch_irc::start_twitch_irc_worker,
 };
 
@@ -124,11 +127,6 @@ impl AppState {
 
     pub fn start_twitch_irc_worker(&mut self) {
         if self.settings.channel_name.is_empty() {
-            self.diff_tx
-                .send(AppStateDiff::SetSettingsChannelError(String::from(
-                    "Channel name cannot be empty.",
-                )))
-                .expect("unreachable");
             return;
         }
 
@@ -177,15 +175,6 @@ impl AppState {
 
     pub fn unlink_twitch_account(&mut self) {
         self.twitch_account = None;
-    }
-
-    pub fn show_not_logged_in_toast(&mut self) {
-        self.toasts.add(Toast {
-            kind: ToastKind::Error,
-            text: WidgetText::Text(String::from("You are not logged in.")),
-            options: ToastOptions::default().duration_in_seconds(3.0),
-            ..Toast::default()
-        });
     }
 
     pub fn register_new_event(&mut self, event: TwitchEvent) {
@@ -310,6 +299,12 @@ impl AppState {
                 self.toasts.add(toast);
             }
             AppStateDiff::AccountLinked(client, token) => {
+                show_toast(
+                    &self.diff_tx,
+                    ToastKind::Info,
+                    &format!("Logged in as {}.", token.login),
+                );
+
                 self.twitch_account = Some(TwitchAccount { client, token });
                 if let Some(connected_channel_name) = &self.connected_channel_name {
                     twitch_get_channel_from_login(

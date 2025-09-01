@@ -1,5 +1,6 @@
 use std::{sync::mpsc, time::Duration};
 
+use egui_toast::ToastKind;
 use tracing::warn;
 use twitch_api::{
     HelixClient,
@@ -11,7 +12,7 @@ use twitch_oauth2::{DeviceUserTokenBuilder, Scope, UserToken};
 
 use crate::{
     state::{AppStateDiff, TwitchAccount},
-    ui::util::show_error_toast,
+    ui::util::show_toast,
 };
 
 const RUEY_CLIENT_ID: &str = env!("RUEY_CLIENT_ID");
@@ -64,7 +65,7 @@ pub fn twitch_relink_account(diff_tx: &mpsc::Sender<AppStateDiff>, access_token:
             }
             Err(err) => {
                 warn!("Failed to relink account: {}", err);
-                show_error_toast(&diff_tx, "Failed to relink account.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to relink account.");
             }
         }
     });
@@ -81,13 +82,18 @@ pub fn twitch_get_channel_from_login(diff_tx: &mpsc::Sender<AppStateDiff>, accou
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get channel information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         match maybe_info {
             Some(channel_info) => {
+                show_toast(
+                    &diff_tx,
+                    ToastKind::Success,
+                    &format!("Connected to channel {}.", channel),
+                );
                 diff_tx
                     .send(AppStateDiff::ChannelInfoUpdated(channel_info))
                     .expect("Failed to send channel information");
@@ -124,7 +130,7 @@ pub fn twitch_send_message(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to send message: {}", err);
-                show_error_toast(&diff_tx, "Failed to send message.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to send message.");
             }
         }
     });
@@ -151,7 +157,7 @@ pub fn twitch_send_announcement(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to send announcement: {}", err);
-                show_error_toast(&diff_tx, "Failed to send announcement.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to send announcement.");
             }
         }
     });
@@ -178,7 +184,7 @@ pub fn twitch_delete_message(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to delete message: {}", err);
-                show_error_toast(&diff_tx, "Failed to delete message.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to delete message.");
             }
         }
     });
@@ -200,7 +206,7 @@ pub fn twitch_delete_all_messages(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to delete all messages: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
             }
         }
     });
@@ -225,13 +231,13 @@ pub fn twitch_timeout_user(
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get user information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         let Some(target_user_info) = target_user_info else {
-            show_error_toast(&diff_tx, "User not found.");
+            show_toast(&diff_tx, ToastKind::Error, "User not found.");
             return;
         };
 
@@ -249,7 +255,7 @@ pub fn twitch_timeout_user(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to timeout user: {}", err);
-                show_error_toast(&diff_tx, "Failed to timeout user.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to timeout user.");
             }
         }
     });
@@ -273,13 +279,13 @@ pub fn twitch_untimeout_user(
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get user information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         let Some(target_user_info) = target_user_info else {
-            show_error_toast(&diff_tx, "User not found.");
+            show_toast(&diff_tx, ToastKind::Error, "User not found.");
             return;
         };
 
@@ -290,7 +296,7 @@ pub fn twitch_untimeout_user(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to untimeout user: {}", err);
-                show_error_toast(&diff_tx, "Failed to untimeout user.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to untimeout user.");
             }
         }
     });
@@ -314,13 +320,13 @@ pub fn twitch_ban_user(
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get user information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         let Some(target_user_info) = target_user_info else {
-            show_error_toast(&diff_tx, "User not found.");
+            show_toast(&diff_tx, ToastKind::Error, "User not found.");
             return;
         };
 
@@ -331,7 +337,7 @@ pub fn twitch_ban_user(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to ban user: {}", err);
-                show_error_toast(&diff_tx, "Failed to ban user.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to ban user.");
             }
         }
     });
@@ -355,13 +361,13 @@ pub fn twitch_unban_user(
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get user information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         let Some(target_user_info) = target_user_info else {
-            show_error_toast(&diff_tx, "User not found.");
+            show_toast(&diff_tx, ToastKind::Error, "User not found.");
             return;
         };
 
@@ -372,7 +378,7 @@ pub fn twitch_unban_user(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to unban user: {}", err);
-                show_error_toast(&diff_tx, "Failed to unban user.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to unban user.");
             }
         }
     });
@@ -396,13 +402,13 @@ pub fn twitch_shoutout_user(
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get user information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         let Some(target_user_info) = target_user_info else {
-            show_error_toast(&diff_tx, "User not found.");
+            show_toast(&diff_tx, ToastKind::Error, "User not found.");
             return;
         };
 
@@ -417,7 +423,7 @@ pub fn twitch_shoutout_user(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to shoutout user: {}", err);
-                show_error_toast(&diff_tx, "Failed to shoutout user.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to shoutout user.");
             }
         }
     });
@@ -440,13 +446,13 @@ pub fn twitch_vip_user(
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get user information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         let Some(target_user_info) = target_user_info else {
-            show_error_toast(&diff_tx, "User not found.");
+            show_toast(&diff_tx, ToastKind::Error, "User not found.");
             return;
         };
 
@@ -457,7 +463,7 @@ pub fn twitch_vip_user(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to vip user: {}", err);
-                show_error_toast(&diff_tx, "Failed to vip user.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to vip user.");
             }
         }
     });
@@ -480,13 +486,13 @@ pub fn twitch_unvip_user(
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get user information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         let Some(target_user_info) = target_user_info else {
-            show_error_toast(&diff_tx, "User not found.");
+            show_toast(&diff_tx, ToastKind::Error, "User not found.");
             return;
         };
 
@@ -497,7 +503,7 @@ pub fn twitch_unvip_user(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to unvip user: {}", err);
-                show_error_toast(&diff_tx, "Failed to unvip user.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to unvip user.");
             }
         }
     });
@@ -520,13 +526,13 @@ pub fn twitch_mod_user(
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get user information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         let Some(target_user_info) = target_user_info else {
-            show_error_toast(&diff_tx, "User not found.");
+            show_toast(&diff_tx, ToastKind::Error, "User not found.");
             return;
         };
 
@@ -538,7 +544,7 @@ pub fn twitch_mod_user(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to mod user: {}", err);
-                show_error_toast(&diff_tx, "Failed to mod user.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to mod user.");
             }
         }
     });
@@ -561,13 +567,13 @@ pub fn twitch_unmod_user(
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get user information: {}", err);
-                show_error_toast(&diff_tx, "Failed to get user information.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         let Some(target_user_info) = target_user_info else {
-            show_error_toast(&diff_tx, "User not found.");
+            show_toast(&diff_tx, ToastKind::Error, "User not found.");
             return;
         };
 
@@ -578,7 +584,7 @@ pub fn twitch_unmod_user(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to unmod user: {}", err);
-                show_error_toast(&diff_tx, "Failed to unmod user.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to unmod user.");
             }
         }
     });

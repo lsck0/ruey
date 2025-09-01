@@ -366,6 +366,9 @@ pub fn render_chat_message(
             }
         });
 
+        // NOTE: if this has to be extended in anyway, parse the message before into [Text(String),
+        // Link(String), Emote(Img), Text(Text)] etc and then match on the kind to display.
+
         // message text
         let links: Vec<_> = LinkFinder::new().links(&message.message_text).collect();
 
