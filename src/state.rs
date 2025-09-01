@@ -1,6 +1,5 @@
-use eframe::egui::WidgetText;
 use egui_file_dialog::FileDialog;
-use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
+use egui_toast::{Toast, ToastKind, Toasts};
 use std::{sync::mpsc, time::Duration};
 use tokio::task::AbortHandle;
 use twitch_api::{HelixClient, helix::channels::ChannelInformation};
@@ -301,7 +300,7 @@ impl AppState {
             AppStateDiff::AccountLinked(client, token) => {
                 show_toast(
                     &self.diff_tx,
-                    ToastKind::Info,
+                    ToastKind::Success,
                     &format!("Logged in as {}.", token.login),
                 );
 

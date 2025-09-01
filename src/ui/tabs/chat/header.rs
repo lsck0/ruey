@@ -2,16 +2,19 @@ use std::fs;
 
 use crate::{
     state::AppState,
-    twitch::{api::twitch_delete_all_messages, types::TwitchEvent},
+    twitch::{
+        api::{twitch_delete_all_messages, twitch_patch_chat_settings},
+        types::TwitchEvent,
+    },
     ui::tabs::chat::message::render_event_for_log,
 };
 use eframe::egui::{self, Button, TextEdit, Ui};
 use egui_flex::{Flex, item};
 use tracing::warn;
+use twitch_api::helix::chat::UpdateChatSettingsBody;
 
 pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
     Flex::horizontal().w_full().show(ui, |flex| {
-        // TODO: implement the apis for these buttons
         flex.add_ui(item(), |ui| {
             if let Some(account) = &state.twitch_account
                 && let Some(channel) = &state.connected_channel_info
@@ -21,31 +24,93 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                         twitch_delete_all_messages(&state.diff_tx, account, channel);
                     }
 
-                    if ui.button("Toggle Emote-Only Chat").clicked() {}
+                    if ui.button("Toggle Emote-Only Chat").clicked() {
+                        let mut body = UpdateChatSettingsBody::default();
+                        body.emote_mode = Some(!state.chat.is_emote_only);
+
+                        twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                    }
 
                     ui.menu_button("Follow-Only Chat", |ui| {
-                        if ui.button("Off").clicked() {}
+                        if ui.button("Off").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.follower_mode = Some(false);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
 
                         ui.separator();
 
-                        if ui.button("On").clicked() {}
+                        if ui.button("On").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.follower_mode = Some(true);
 
-                        if ui.button("10 Minutes").clicked() {}
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
 
-                        if ui.button("30 Minutes").clicked() {}
+                        if ui.button("10 Minutes").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.follower_mode = Some(true);
+                            body.follower_mode_duration = Some(10); // duration is in minutes
 
-                        if ui.button("1 Hour").clicked() {}
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
 
-                        if ui.button("1 Day").clicked() {}
+                        if ui.button("30 Minutes").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.follower_mode = Some(true);
+                            body.follower_mode_duration = Some(30);
 
-                        if ui.button("1 Week").clicked() {}
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
 
-                        if ui.button("1 Month").clicked() {}
+                        if ui.button("1 Hour").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.follower_mode = Some(true);
+                            body.follower_mode_duration = Some(60);
 
-                        if ui.button("3 Months").clicked() {}
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("1 Day").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.follower_mode = Some(true);
+                            body.follower_mode_duration = Some(24 * 60);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("1 Week").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.follower_mode = Some(true);
+                            body.follower_mode_duration = Some(7 * 24 * 60);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("1 Month").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.follower_mode = Some(true);
+                            body.follower_mode_duration = Some(30 * 24 * 60);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("3 Months").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.follower_mode = Some(true);
+                            body.follower_mode_duration = Some(3 * 30 * 24 * 60);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
                     });
 
-                    if ui.button("Toggle Sub-Only Chat").clicked() {}
+                    if ui.button("Toggle Sub-Only Chat").clicked() {
+                        let mut body = UpdateChatSettingsBody::default();
+                        body.subscriber_mode = Some(!state.chat.is_subscriber_only);
+
+                        twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                    }
                 });
             }
 

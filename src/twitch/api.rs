@@ -6,7 +6,10 @@ use twitch_api::{
     HelixClient,
     client::ClientDefault,
     extra::AnnouncementColor,
-    helix::{channels::ChannelInformation, chat::SendAShoutoutRequest},
+    helix::{
+        channels::ChannelInformation,
+        chat::{SendAShoutoutRequest, UpdateChatSettingsBody, UpdateChatSettingsRequest},
+    },
 };
 use twitch_oauth2::{DeviceUserTokenBuilder, Scope, UserToken};
 
@@ -585,6 +588,30 @@ pub fn twitch_unmod_user(
             Err(err) => {
                 warn!("Failed to unmod user: {}", err);
                 show_toast(&diff_tx, ToastKind::Error, "Failed to unmod user.");
+            }
+        }
+    });
+}
+
+pub fn twitch_patch_chat_settings(
+    diff_tx: &mpsc::Sender<AppStateDiff>,
+    account: &TwitchAccount,
+    channel: &ChannelInformation,
+    settings_patch: UpdateChatSettingsBody,
+) {
+    let diff_tx = diff_tx.clone();
+    let client = account.client.clone();
+    let token = account.token.clone();
+    let broadcaster_id = channel.broadcaster_id.clone();
+
+    tokio::spawn(async move {
+        let request = UpdateChatSettingsRequest::new(broadcaster_id, &token.user_id);
+
+        match client.req_patch(request, settings_patch, &token).await {
+            Ok(_) => {}
+            Err(_) => {
+                warn!("Failed to update chat settings.");
+                show_toast(&diff_tx, ToastKind::Error, "Failed to update chat settings.");
             }
         }
     });
