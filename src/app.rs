@@ -28,6 +28,7 @@ impl App {
 
         let db_pool = models::initialize_database();
 
+        // BUG: this does not restore the tabs properly
         let tree = if let Some(tree_str) = Settings::get_stored_settings(&db_pool).tree
             && let Ok(saved_tree) = serde_binary::from_vec::<DockState<Tabs>>(tree_str, Endian::Big)
         {

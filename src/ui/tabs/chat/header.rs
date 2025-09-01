@@ -24,6 +24,8 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                         twitch_delete_all_messages(&state.diff_tx, account, channel);
                     }
 
+                    // TODO: slow mode
+
                     if ui.button("Toggle Emote-Only Chat").clicked() {
                         let mut body = UpdateChatSettingsBody::default();
                         body.emote_mode = Some(!state.chat.is_emote_only);
@@ -209,6 +211,8 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
             state.file_dialog.save_file();
         }
     });
+
+    // BUG: this seems to break chat flow after being used
 
     // chat log saving, i failed twice moving this to a worker thread already
     if let Some(path) = state.file_dialog.update(ui.ctx()).picked() {

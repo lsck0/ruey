@@ -23,6 +23,7 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
                 state.stop_twitch_irc_worker();
             }
         } else {
+            // BUG: this doesnt get reset if you connect successfully after an error
             let mut channel_edit = TextEdit::singleline(&mut state.settings.channel_name).char_limit(25);
             if state.settings.channel_name_error.is_some() {
                 channel_edit = channel_edit.text_color(Color32::RED);

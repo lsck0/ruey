@@ -1,7 +1,14 @@
-use crate::{state::AppState, twitch::api::twitch_send_message, ui::util::show_toast};
+use std::sync::mpsc;
+
+use crate::{
+    state::{AppState, AppStateDiff, TwitchAccount},
+    twitch::api::twitch_send_message,
+    ui::util::show_toast,
+};
 use eframe::egui::{self, Button, TextEdit, Ui};
 use egui_flex::{Flex, item};
 use egui_toast::ToastKind;
+use twitch_api::helix::channels::ChannelInformation;
 
 pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
     let enter_pressed = ui.input(|i| i.key_pressed(egui::Key::Enter));
@@ -27,11 +34,37 @@ pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
                 return;
             };
 
-            // TODO: allow for /ban @bla etc, maybe even with a menu to show possible commands?
+            if state.chat.message_input.trim().starts_with('/') {
+                run_command(&state.diff_tx, account, channel, &state.chat.message_input);
+            } else {
+                twitch_send_message(&state.diff_tx, account, channel, &state.chat.message_input);
+            }
 
-            twitch_send_message(&state.diff_tx, account, channel, &state.chat.message_input);
             state.chat.message_input.clear();
             input.request_focus();
         }
     });
+}
+
+fn run_command(
+    diff_tx: &mpsc::Sender<AppStateDiff>,
+    account: &TwitchAccount,
+    channel: &ChannelInformation,
+    message: &str,
+) -> bool {
+    let parts: Vec<&str> = message.split_whitespace().collect();
+
+    // TODO: implement commands
+    // - send shoutout
+    // - timeout / untimeout
+    // - ban / unban
+    // - shoutout
+    // - vip / unvip
+    // - mod / unmod
+    match parts[0] {
+        _ => {
+            show_toast(diff_tx, ToastKind::Error, "Unknown command");
+            return false;
+        }
+    }
 }
