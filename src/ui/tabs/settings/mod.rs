@@ -2,6 +2,8 @@ use eframe::egui::{self, Color32, RichText, TextEdit};
 
 use crate::state::{AppState, AppStateDiff};
 
+const GIT_COMMIT_HASH: &str = include_str!("../../../../.git/refs/heads/master");
+
 #[derive(Default)]
 pub struct SettingsState {
     pub channel_name: String,
@@ -97,4 +99,14 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
 
         ui.label("(This happens automatically every 30 seconds)")
     });
+
+    ui.separator();
+
+    ui.label(RichText::new("About").strong());
+    ui.label(format!("Version: {}", env!("CARGO_PKG_VERSION")));
+    ui.label(format!("Commit: {}", GIT_COMMIT_HASH.trim()));
+    // ui.horizontal(|ui| {
+    //     ui.label("Github:");
+    //     ui.hyperlink("https://github.com/lsck0/ruey");
+    // });
 }
