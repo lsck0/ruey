@@ -24,7 +24,72 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                         twitch_delete_all_messages(&state.diff_tx, account, channel);
                     }
 
-                    // TODO: slow mode
+                    ui.menu_button("Slow Mode", |ui| {
+                        if ui.button("Off").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.slow_mode = Some(false);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        ui.separator();
+
+                        if ui.button("3 Seconds").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.slow_mode = Some(true);
+                            body.slow_mode_wait_time = Some(3);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("5 Seconds").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.slow_mode = Some(true);
+                            body.slow_mode_wait_time = Some(5);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("10 Seconds").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.slow_mode = Some(true);
+                            body.slow_mode_wait_time = Some(10);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("20 Seconds").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.slow_mode = Some(true);
+                            body.slow_mode_wait_time = Some(20);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("30 Seconds").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.slow_mode = Some(true);
+                            body.slow_mode_wait_time = Some(30);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("60 Seconds").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.slow_mode = Some(true);
+                            body.slow_mode_wait_time = Some(60);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+
+                        if ui.button("120 Seconds").clicked() {
+                            let mut body = UpdateChatSettingsBody::default();
+                            body.slow_mode = Some(true);
+                            body.slow_mode_wait_time = Some(120);
+
+                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        }
+                    });
 
                     if ui.button("Toggle Emote-Only Chat").clicked() {
                         let mut body = UpdateChatSettingsBody::default();
