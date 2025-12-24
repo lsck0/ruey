@@ -1,5 +1,11 @@
 use std::{sync::mpsc, time::Duration};
 
+use chrono::Local;
+use eframe::egui::{self, Color32, Popup, RichText, Ui};
+use linkify::LinkFinder;
+use twitch_api::helix::channels::ChannelInformation;
+use twitch_irc::message::PrivmsgMessage;
+
 use crate::{
     state::{AppStateDiff, TwitchAccount},
     twitch::{
@@ -10,11 +16,6 @@ use crate::{
         types::{PrivmsgMessageExt, TwitchEvent},
     },
 };
-use chrono::Local;
-use eframe::egui::{self, Color32, Popup, RichText, Ui};
-use linkify::LinkFinder;
-use twitch_api::helix::channels::ChannelInformation;
-use twitch_irc::message::PrivmsgMessage;
 
 pub fn render_chat_message(
     ui: &mut Ui,
@@ -62,6 +63,8 @@ pub fn render_chat_message(
         }
         if message.is_by_broadcaster() {
             ui.label(RichText::new("CAST ").color(Color32::RED));
+        } else if message.is_by_lead_mod() {
+            ui.label(RichText::new("LMOD ").color(Color32::DARK_GREEN));
         } else if message.is_by_mod() {
             ui.label(RichText::new("MOD ").color(Color32::GREEN));
         } else if message.is_by_vip() {
@@ -77,6 +80,8 @@ pub fn render_chat_message(
                     Color32::YELLOW
                 } else if message.is_by_broadcaster() {
                     Color32::RED
+                } else if message.is_by_lead_mod() {
+                    Color32::DARK_GREEN
                 } else if message.is_by_mod() {
                     Color32::GREEN
                 } else if message.is_by_vip() {
@@ -91,7 +96,7 @@ pub fn render_chat_message(
 
         // sender menu
         Popup::menu(&sender).show(|ui| {
-            ui.set_width(125.0);
+            ui.set_width(200.0);
 
             ui.colored_label(egui::Color32::WHITE, format!("User: {}", message.sender.name));
             ui.separator();
@@ -422,6 +427,8 @@ pub fn render_event_for_log(buffer: &mut String, event: &TwitchEvent) {
                 "FIRST "
             } else if msg.is_by_broadcaster() {
                 "CAST "
+            } else if msg.is_by_lead_mod() {
+                "LMOD "
             } else if msg.is_by_mod() {
                 "MOD "
             } else if msg.is_by_vip() {

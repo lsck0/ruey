@@ -1,8 +1,9 @@
 [package]
 name = "ruey"
-version = "0.0.0"
 edition = "2024"
 build = "build/build.rs"
+version = "0.0.0"
+license = "GPL-3.0-only"
 
 [profile.release]
 codegen-units = 1
@@ -12,46 +13,48 @@ opt-level = 3
 panic = "abort"
 
 [dependencies]
+anyhow = "1.0"
 chrono = "0.4"
+derive_more = { version = "2.1", features = ["full"] }
 futures-util = "0.3"
 linkify = "0.10"
 open = "5.3"
-regex = "1.11"
+regex = "1.12"
 strum = { version = "0.27", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
-tokio = { version = "1.47", features = ["full"] }
-tokio-tungstenite = "0.27"
-tungstenite = "0.27"
+tokio = { version = "1.48", features = ["full"] }
+tokio-tungstenite = "0.28"
+tungstenite = "0.28"
 reqwest = "0.12"
 
 serde = { version = "1.0", features = ["derive"] }
 serde-binary = "0.5"
 serde_json = "1.0"
 
-diesel = { version = "2.2", features = [
+diesel = { version = "2.3", features = [
     "r2d2",
     "sqlite",
     "returning_clauses_for_sqlite_3_35",
 ] }
-diesel_migrations = { version = "2.2", features = ["sqlite"] }
+diesel_migrations = { version = "2.3", features = ["sqlite"] }
 libsqlite3-sys = { version = "0.35", features = ["bundled"] }
 
 winit = "0.30"
-eframe = "0.32"
-egui-file-dialog = "0.11"
-egui-toast = { git = "https://github.com/creativcoder/egui-toast.git" }
-egui_commonmark = { version = "0.21", features = [
+eframe = "0.33"
+egui-file-dialog = "0.12"
+egui-toast = "0.19"
+egui_commonmark = { version = "0.22", features = [
     "better_syntax_highlighting",
     "macros",
 ] }
-egui_dock = { version = "0.17", features = ["serde"] }
-egui_flex = "0.4"
-egui_infinite_scroll = "0.8"
+egui_dock = { version = "0.18", features = ["serde"] }
+egui_flex = "0.5"
+egui_infinite_scroll = "0.9"
 
 twitch-irc = "5.0"
 twitch_api = { version = "0.7", features = ["_all"] }
 twitch_oauth2 = "0.15"
 
-rhai = "1.22"
+rhai = "1.23"

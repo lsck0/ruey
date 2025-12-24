@@ -13,7 +13,7 @@ diesel::table! {
     kv_store (bucket, key) {
         bucket -> Text,
         key -> Text,
-        value -> Binary,
+        value -> Text,
     }
 }
 
@@ -28,8 +28,4 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(
-    actions,
-    kv_store,
-    settings,
-);
+diesel::allow_tables_to_appear_in_same_query!(actions, kv_store, settings,);

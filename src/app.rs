@@ -1,8 +1,8 @@
 use std::{net::TcpStream, sync::mpsc, time::Duration};
 
 use eframe::{
-    CreationContext,
-    egui::{Align2, Direction, pos2},
+    CreationContext, NativeOptions,
+    egui::{Align2, Direction, ViewportBuilder, pos2},
 };
 use egui_dock::DockState;
 use egui_toast::Toasts;
@@ -13,7 +13,7 @@ use crate::{
     models::{self, settings::Settings},
     state::{AppState, AppStateDiff},
     twitch::types::TwitchEvent,
-    ui::{style::setup_style, tabs::Tabs},
+    ui::{style::load_fonts, tabs::Tabs},
     workers::action::start_action_worker,
 };
 
@@ -24,7 +24,7 @@ pub struct App {
 
 impl App {
     pub fn new(cctx: &CreationContext) -> Box<Self> {
-        setup_style(cctx);
+        load_fonts(cctx);
 
         let db_pool = models::initialize_database();
 
@@ -47,7 +47,7 @@ impl App {
         let twitch_event_txs = vec![ui_event_tx, action_worker_tx];
 
         start_action_worker(action_worker_rx, ui_diff_tx.clone());
-        Self::start_app_timers(ui_diff_tx.clone());
+        Self::start_background_tasks(ui_diff_tx.clone());
 
         return Box::new(Self {
             tree,
@@ -55,7 +55,7 @@ impl App {
         });
     }
 
-    fn start_app_timers(ui_state_diff_tx: mpsc::Sender<AppStateDiff>) {
+    fn start_background_tasks(ui_state_diff_tx: mpsc::Sender<AppStateDiff>) {
         // save settings every 30 seconds
         let state_diff_tx_1 = ui_state_diff_tx.clone();
         tokio::spawn(async move {
@@ -86,5 +86,17 @@ impl App {
                 tokio::time::sleep(Duration::from_secs(15)).await;
             }
         });
+    }
+
+    pub fn default_window_options() -> NativeOptions {
+        let window_options = NativeOptions {
+            viewport: ViewportBuilder::default()
+                .with_title("Ruey")
+                .with_inner_size([1200.0, 720.0])
+                .with_min_inner_size([1200.0, 720.0]),
+            ..Default::default()
+        };
+
+        return window_options;
     }
 }

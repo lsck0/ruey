@@ -5,14 +5,15 @@ pub mod message;
 
 use std::time::Duration;
 
+use eframe::egui;
+use egui_infinite_scroll::InfiniteScroll;
+use regex::Regex;
+
 use crate::{
     state::AppState,
     twitch::types::TwitchEvent,
     ui::tabs::chat::{footer::render_chat_footer, header::render_chat_header, history::render_chat_history},
 };
-use eframe::egui;
-use egui_infinite_scroll::InfiniteScroll;
-use regex::Regex;
 
 pub struct ChatState {
     pub events: InfiniteScroll<TwitchEvent, usize>,

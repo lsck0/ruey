@@ -8,7 +8,7 @@ CREATE TABLE actions (
 CREATE TABLE kv_store (
     bucket TEXT NOT NULL,
     key TEXT NOT NULL,
-    value BLOB NOT NULL,
+    value TEXT NOT NULL,
     PRIMARY KEY (bucket, key)
 );
 CREATE INDEX kv_store_bucket_idx ON kv_store(bucket);

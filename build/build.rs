@@ -13,13 +13,24 @@ fn main() {
 
     // add icon to the windows executable
     if target_os == "windows" {
-        println!("cargo:rerun-if-changed=./assets/icon.rc");
-        println!("cargo:rerun-if-changed=./assets/icon.ico");
+        println!("cargo:rerun-if-changed=./assets/images/icon.rc");
+        println!("cargo:rerun-if-changed=./assets/images/icon.ico");
 
-        Command::new("x86_64-w64-mingw32-windres")
-            .args(["./assets/icon.rc", "-O", "coff", "-o", "./assets/icon.res"])
-            .status()
-            .expect("failed to run windres");
+        #[cfg(unix)]
+        {
+            Command::new("x86_64-w64-mingw32-windres")
+                .args(["./assets/icon.rc", "-O", "coff", "-o", "./assets/images/icon.res"])
+                .status()
+                .expect("failed to run windres");
+        }
+
+        #[cfg(windows)]
+        {
+            Command::new("windres")
+                .args(["./assets/icon.rc", "-O", "coff", "-o", "./assets/images/icon.res"])
+                .status()
+                .expect("failed to run windres");
+        }
 
         println!("cargo:rustc-link-arg=./assets/icon.res");
     }

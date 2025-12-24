@@ -51,6 +51,7 @@ impl TryFrom<ServerMessage> for TwitchEvent {
 
 pub trait PrivmsgMessageExt {
     fn is_by_broadcaster(&self) -> bool;
+    fn is_by_lead_mod(&self) -> bool;
     fn is_by_mod(&self) -> bool;
     fn is_by_vip(&self) -> bool;
     fn is_by_subscriber(&self) -> bool;
@@ -68,6 +69,10 @@ pub trait PrivmsgMessageExt {
 impl PrivmsgMessageExt for PrivmsgMessage {
     fn is_by_broadcaster(&self) -> bool {
         self.badges.iter().any(|badge| badge.name == "broadcaster")
+    }
+
+    fn is_by_lead_mod(&self) -> bool {
+        self.badges.iter().any(|badge| badge.name == "lead_moderator")
     }
 
     fn is_by_mod(&self) -> bool {

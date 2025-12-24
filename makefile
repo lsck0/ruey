@@ -4,6 +4,7 @@ default:
 	@echo "Available tasks:"
 	@echo "  - make run"
 	@echo "  - make build"
+	@echo "  - make ci"
 
 .PHONY: run
 run:
@@ -30,3 +31,9 @@ build:
 		-out ./dist/ruey-x86_64_windows.exe \
 
 	rm ./dist/ruey-x86_64_windows-unsigned.exe
+
+.PHONY: ci
+ci:
+	cargo deny check --allow duplicate --allow unmaintained --allow license-not-encountered
+	cargo fmt -- --check
+	cargo clippy --all-targets --all-features -- -D warnings

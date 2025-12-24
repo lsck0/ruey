@@ -1,14 +1,15 @@
 use std::sync::mpsc;
 
+use eframe::egui::{self, Button, TextEdit, Ui};
+use egui_flex::{Flex, item};
+use egui_toast::ToastKind;
+use twitch_api::helix::channels::ChannelInformation;
+
 use crate::{
     state::{AppState, AppStateDiff, TwitchAccount},
     twitch::api::twitch_send_message,
     ui::util::show_toast,
 };
-use eframe::egui::{self, Button, TextEdit, Ui};
-use egui_flex::{Flex, item};
-use egui_toast::ToastKind;
-use twitch_api::helix::channels::ChannelInformation;
 
 pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
     let enter_pressed = ui.input(|i| i.key_pressed(egui::Key::Enter));
@@ -62,6 +63,19 @@ fn run_command(
     // - vip / unvip
     // - mod / unmod
     match parts[0] {
+        "/shoutout" => {
+            if parts.len() < 2 {
+                show_toast(diff_tx, ToastKind::Error, "Usage: /shoutout <username>");
+                return false;
+            }
+            let target_username = parts[1];
+            show_toast(
+                diff_tx,
+                ToastKind::Info,
+                &format!("Shoutout sent to {}", target_username),
+            );
+            true
+        }
         _ => {
             show_toast(diff_tx, ToastKind::Error, "Unknown command");
             return false;

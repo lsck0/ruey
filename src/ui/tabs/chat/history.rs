@@ -1,9 +1,10 @@
+use eframe::egui::{self, Align2, Area, ScrollArea, Ui, scroll_area::ScrollSource};
+
 use crate::{
     state::AppState,
     twitch::types::{PrivmsgMessageExt, TwitchEvent},
     ui::tabs::chat::message::render_chat_message,
 };
-use eframe::egui::{self, Align2, Area, ScrollArea, Ui, scroll_area::ScrollSource};
 
 pub fn render_chat_history(ui: &mut Ui, state: &mut AppState) {
     set_event_filter(state);

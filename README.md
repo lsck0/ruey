@@ -3,6 +3,6 @@
         Ruey
     </h1>
     <h3 align="center">
-        GUI configurable Twitch Bot Framework w/ Embedded Scripting Language
+        Twitch Bot Client
     </h3>
 </div>

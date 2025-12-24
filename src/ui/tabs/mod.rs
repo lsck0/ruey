@@ -1,5 +1,9 @@
+pub mod actions;
 pub mod chat;
+pub mod database;
+pub mod logs;
 pub mod settings;
+pub mod stats;
 
 use eframe::egui;
 use egui_commonmark::{CommonMarkCache, commonmark_str};
@@ -38,7 +42,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Tabs::Chat => show_chat_ui(ui, self.state),
             Tabs::Settings => show_settings_ui(ui, self.state),
             Tabs::Docs => {
-                commonmark_str!(ui, &mut CommonMarkCache::default(), "./assets/Docs.md");
+                commonmark_str!(ui, &mut CommonMarkCache::default(), "./assets/documentation.md");
             }
             _ => {
                 ui.label("unimplemented");

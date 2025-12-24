@@ -1,5 +1,10 @@
 use std::fs;
 
+use eframe::egui::{self, Button, TextEdit, Ui};
+use egui_flex::{Flex, item};
+use tracing::warn;
+use twitch_api::helix::chat::UpdateChatSettingsBody;
+
 use crate::{
     state::AppState,
     twitch::{
@@ -8,10 +13,6 @@ use crate::{
     },
     ui::tabs::chat::message::render_event_for_log,
 };
-use eframe::egui::{self, Button, TextEdit, Ui};
-use egui_flex::{Flex, item};
-use tracing::warn;
-use twitch_api::helix::chat::UpdateChatSettingsBody;
 
 pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
     Flex::horizontal().w_full().show(ui, |flex| {

@@ -1,5 +1,5 @@
 #![allow(clippy::needless_return)]
-#![forbid(clippy::unwrap_used)]
+#![forbid(unsafe_code, clippy::unwrap_used)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod app;
@@ -9,21 +9,21 @@ pub mod schema;
 pub mod state;
 pub mod twitch;
 pub mod ui;
-pub mod window;
 pub mod workers;
 
+use anyhow::Result;
 use eframe::{EframePumpStatus, UserEvent};
-use std::io;
 use tokio::task::LocalSet;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::event_loop::{ControlFlow, EventLoop};
 
-use crate::{app::App, window::get_window_options};
+use crate::app::App;
 
 #[cfg(unix)]
-fn main() -> io::Result<()> {
+fn main() -> Result<()> {
     use std::os::fd::AsRawFd;
+
     use tokio::io::unix::AsyncFd;
 
     tracing_subscriber::registry()
@@ -31,22 +31,17 @@ fn main() -> io::Result<()> {
         .with(fmt::layer().with_writer(std::io::stdout))
         .init();
 
-    let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event()
-        .build()
-        .expect("Failed to create event loop");
+    let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event().build()?;
     egui_eventloop.set_control_flow(ControlFlow::Poll);
 
     let mut egui_app = eframe::create_native(
         env!("CARGO_PKG_NAME"),
-        get_window_options(),
+        App::default_window_options(),
         Box::new(|cctx| Ok(App::new(cctx))),
         &egui_eventloop,
     );
 
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Failed to create Tokio runtime");
+    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
 
     return LocalSet::new().block_on(&runtime, async {
         let eventloop_fd = AsyncFd::new(egui_eventloop.as_raw_fd())?;
@@ -75,33 +70,28 @@ fn main() -> io::Result<()> {
             }
         }
 
-        return Ok::<_, io::Error>(());
+        return Ok(());
     });
 }
 
 #[cfg(windows)]
-fn main() -> io::Result<()> {
+fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "ruey=debug".to_string().into()))
         .with(fmt::layer().with_writer(std::io::stdout))
         .init();
 
-    let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event()
-        .build()
-        .expect("Failed to create event loop");
+    let mut egui_eventloop = EventLoop::<UserEvent>::with_user_event().build()?;
     egui_eventloop.set_control_flow(ControlFlow::Wait);
 
     let mut egui_app = eframe::create_native(
         env!("CARGO_PKG_NAME"),
-        get_window_options(),
+        App::default_window_options(),
         Box::new(|cctx| Ok(App::new(cctx))),
         &egui_eventloop,
     );
 
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Failed to create Tokio runtime");
+    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
 
     return LocalSet::new().block_on(&runtime, async {
         loop {
@@ -114,6 +104,6 @@ fn main() -> io::Result<()> {
             }
         }
 
-        return Ok::<_, io::Error>(());
+        return Ok(());
     });
 }

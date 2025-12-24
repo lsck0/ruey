@@ -1,0 +1,40 @@
+on:
+  workflow_dispatch:
+  pull_request:
+
+name: CI
+
+jobs:
+  ci:
+    name: CI
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Setup Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
+
+      - name: Setup LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "10.0"
+
+      - name: Install Cargo Dependencies
+        run: |
+          cargo install cargo-deny
+
+      - name: Install Other Dependencies
+        run: |
+          sudo sed -i '/^deb .* main/ s/main/main universe/' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install mold libtinfo5
+
+      - name: Run Checks
+        run: |
+          make ci

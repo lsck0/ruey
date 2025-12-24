@@ -1,6 +1,6 @@
+use anyhow::Result;
 use diesel::prelude::*;
 use serde::{Serialize, de::DeserializeOwned};
-use serde_binary::binary_stream::Endian;
 
 use crate::models::SqlitePool;
 
@@ -10,49 +10,51 @@ use crate::models::SqlitePool;
 pub struct KvStore {
     pub bucket: String,
     pub key: String,
-    pub value: Vec<u8>,
+    pub value: String,
 }
 
 impl KvStore {
-    pub fn get_value<T>(pool: &SqlitePool, bucket: &str, key: &str) -> Option<T>
+    pub fn get_value<T>(pool: &SqlitePool, bucket: &str, key: &str) -> Result<Option<T>>
     where
         T: DeserializeOwned,
     {
         use crate::schema::kv_store;
 
-        let mut db = pool.get().expect("Failed to get a connection from the pool.");
+        let mut db = pool.get()?;
 
         let value = kv_store::table
             .filter(kv_store::bucket.eq(bucket))
             .filter(kv_store::key.eq(key))
             .select(kv_store::value)
-            .first::<Vec<u8>>(&mut db)
-            .optional()
-            .expect("Failed to query kv_store");
+            .first::<String>(&mut db)
+            .optional()?;
 
-        return value.map(|v| serde_binary::from_vec(v, Endian::Big).expect("Failed to decode value from kv_store"));
+        let object = value.map(|v| serde_json::from_str::<T>(&v)).transpose()?;
+
+        return Ok(object);
     }
 
-    pub fn set_value<T>(pool: &SqlitePool, bucket: &str, key: &str, value: T)
+    pub fn set_value<T>(pool: &SqlitePool, bucket: String, key: String, value: T) -> Result<()>
     where
         T: Serialize,
     {
         use crate::schema::kv_store;
 
-        let value = serde_binary::to_vec(&value, Endian::Big).expect("Failed to encode value to kv_store");
+        let mut db = pool.get()?;
 
-        let mut db = pool.get().expect("Failed to get a connection from the pool.");
+        let value = serde_json::to_string(&value)?;
 
         diesel::insert_into(kv_store::table)
             .values(KvStore {
-                bucket: bucket.to_string(),
-                key: key.to_string(),
+                bucket,
+                key,
                 value: value.clone(),
             })
             .on_conflict((kv_store::bucket, kv_store::key))
             .do_update()
             .set(kv_store::value.eq(value))
-            .execute(&mut db)
-            .expect("Failed to insert or update value in kv_store");
+            .execute(&mut db)?;
+
+        return Ok(());
     }
 }
