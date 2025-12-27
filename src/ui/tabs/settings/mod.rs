@@ -1,6 +1,6 @@
 use eframe::egui::{self, Color32, RichText, TextEdit};
 
-use crate::state::{AppState, AppStateDiff};
+use crate::ui::state::{AppState, AppStateDiff};
 
 const GIT_COMMIT_HASH: &str = include_str!("../../../../.git/refs/heads/master");
 

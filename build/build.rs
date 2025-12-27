@@ -19,7 +19,13 @@ fn main() {
         #[cfg(unix)]
         {
             Command::new("x86_64-w64-mingw32-windres")
-                .args(["./assets/icon.rc", "-O", "coff", "-o", "./assets/images/icon.res"])
+                .args([
+                    "./assets/images/icon.rc",
+                    "-O",
+                    "coff",
+                    "-o",
+                    "./assets/images/icon.res",
+                ])
                 .status()
                 .expect("failed to run windres");
         }
@@ -27,11 +33,17 @@ fn main() {
         #[cfg(windows)]
         {
             Command::new("windres")
-                .args(["./assets/icon.rc", "-O", "coff", "-o", "./assets/images/icon.res"])
+                .args([
+                    "./assets/images/icon.rc",
+                    "-O",
+                    "coff",
+                    "-o",
+                    "./assets/images/icon.res",
+                ])
                 .status()
                 .expect("failed to run windres");
         }
 
-        println!("cargo:rustc-link-arg=./assets/icon.res");
+        println!("cargo:rustc-link-arg=./assets/images/icon.res");
     }
 }

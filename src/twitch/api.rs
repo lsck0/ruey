@@ -14,8 +14,8 @@ use twitch_api::{
 use twitch_oauth2::{DeviceUserTokenBuilder, Scope, UserToken};
 
 use crate::{
-    state::{AppStateDiff, TwitchAccount},
-    ui::util::show_toast,
+    twitch::types::TwitchAccount,
+    ui::{state::AppStateDiff, util::show_toast},
 };
 
 const RUEY_CLIENT_ID: &str = env!("RUEY_CLIENT_ID");

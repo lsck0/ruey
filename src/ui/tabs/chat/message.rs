@@ -7,14 +7,14 @@ use twitch_api::helix::channels::ChannelInformation;
 use twitch_irc::message::PrivmsgMessage;
 
 use crate::{
-    state::{AppStateDiff, TwitchAccount},
     twitch::{
         api::{
             twitch_ban_user, twitch_delete_message, twitch_mod_user, twitch_shoutout_user, twitch_timeout_user,
             twitch_unban_user, twitch_unmod_user, twitch_vip_user,
         },
-        types::{PrivmsgMessageExt, TwitchEvent},
+        types::{PrivmsgMessageExt, TwitchAccount, TwitchEvent},
     },
+    ui::state::AppStateDiff,
 };
 
 pub fn render_chat_message(
@@ -145,6 +145,11 @@ pub fn render_chat_message(
 
             if !message.is_timeouted() && !message.is_banned() {
                 ui.menu_button("Timeout", |ui| {
+                    if ui.button("30 seconds").clicked() {
+                        twitch_timeout_user(diff_tx, account, channel, &message.sender.name, Duration::from_secs(30));
+                        ui.close();
+                    }
+
                     if ui.button("1 minute").clicked() {
                         twitch_timeout_user(diff_tx, account, channel, &message.sender.name, Duration::from_secs(60));
                         ui.close();

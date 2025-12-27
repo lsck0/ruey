@@ -10,9 +10,11 @@ use egui_infinite_scroll::InfiniteScroll;
 use regex::Regex;
 
 use crate::{
-    state::AppState,
     twitch::types::TwitchEvent,
-    ui::tabs::chat::{footer::render_chat_footer, header::render_chat_header, history::render_chat_history},
+    ui::{
+        state::AppState,
+        tabs::chat::{footer::render_chat_footer, header::render_chat_header, history::render_chat_history},
+    },
 };
 
 pub struct ChatState {

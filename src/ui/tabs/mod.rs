@@ -10,9 +10,9 @@ use egui_commonmark::{CommonMarkCache, commonmark_str};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
 
-use crate::{
+use crate::ui::{
     state::AppState,
-    ui::tabs::{chat::show_chat_ui, settings::show_settings_ui},
+    tabs::{chat::show_chat_ui, settings::show_settings_ui},
 };
 
 #[derive(Clone, Serialize, Deserialize, Display, EnumIter, EnumString)]

@@ -6,12 +6,11 @@ use tracing::warn;
 use twitch_api::helix::chat::UpdateChatSettingsBody;
 
 use crate::{
-    state::AppState,
     twitch::{
         api::{twitch_delete_all_messages, twitch_patch_chat_settings},
         types::TwitchEvent,
     },
-    ui::tabs::chat::message::render_event_for_log,
+    ui::{state::AppState, tabs::chat::message::render_event_for_log},
 };
 
 pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {

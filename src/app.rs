@@ -5,15 +5,23 @@ use eframe::{
     egui::{Align2, Direction, ViewportBuilder, pos2},
 };
 use egui_dock::DockState;
-use egui_toast::Toasts;
+use egui_toast::{ToastKind, Toasts};
 use serde_binary::binary_stream::Endian;
 use strum::IntoEnumIterator;
+use twitch_irc::message::{ClearChatAction, FollowersOnlyMode, IRCMessage, IRCTags, NoticeMessage};
 
 use crate::{
     models::{self, settings::Settings},
-    state::{AppState, AppStateDiff},
-    twitch::types::TwitchEvent,
-    ui::{style::load_fonts, tabs::Tabs},
+    twitch::{
+        api::twitch_get_channel_from_login,
+        types::{PrivmsgMessageExt, TwitchAccount, TwitchEvent},
+    },
+    ui::{
+        state::{AppState, AppStateDiff},
+        style::load_fonts,
+        tabs::Tabs,
+        util::show_toast,
+    },
     workers::action::start_action_worker,
 };
 
@@ -88,15 +96,218 @@ impl App {
         });
     }
 
-    pub fn default_window_options() -> NativeOptions {
-        let window_options = NativeOptions {
-            viewport: ViewportBuilder::default()
-                .with_title("Ruey")
-                .with_inner_size([1200.0, 720.0])
-                .with_min_inner_size([1200.0, 720.0]),
-            ..Default::default()
-        };
+    pub fn apply_state_diff(&mut self, diff: AppStateDiff) {
+        match diff {
+            AppStateDiff::SaveSettings => {
+                let settings = Settings {
+                    id: 1,
+                    zoom_factor: Some(self.state.zoom_factor),
+                    tree: Some(serde_binary::to_vec(&self.tree, Endian::Big).expect("Failed to serialize dock state")),
+                    channel: Some(self.state.settings.channel_name.clone()),
+                    user_access_token: self
+                        .state
+                        .twitch_account
+                        .clone()
+                        .map(|account| account.token.access_token)
+                        .map(|token| token.take()),
+                    user_refresh_token: self
+                        .state
+                        .twitch_account
+                        .clone()
+                        .and_then(|account| account.token.refresh_token)
+                        .map(|token| token.take()),
+                };
+                settings.store_settings(&self.state.db_pool);
+            }
+            AppStateDiff::ResetLayout => {
+                self.tree = DockState::new(Tabs::iter().collect());
+            }
+            AppStateDiff::InternetConnected => {
+                self.state.connected_to_internet = true;
+            }
+            AppStateDiff::InternetDisconnected => {
+                self.state.connected_to_internet = false;
+            }
+            AppStateDiff::ShowToast(toast) => {
+                self.state.toasts.add(toast);
+            }
+            AppStateDiff::AccountLinked(client, token) => {
+                show_toast(
+                    &self.state.diff_tx,
+                    ToastKind::Success,
+                    &format!("Logged in as {}.", token.login),
+                );
 
-        return window_options;
+                self.state.twitch_account = Some(TwitchAccount { client, token });
+                if let Some(connected_channel_name) = &self.state.connected_channel_name {
+                    twitch_get_channel_from_login(
+                        &self.state.diff_tx,
+                        self.state.twitch_account.as_ref().expect("unreachable"),
+                        connected_channel_name,
+                    );
+                } else {
+                    self.state.connected_channel_name = None;
+                    self.state.connected_channel_info = None;
+                }
+            }
+            AppStateDiff::ChannelInfoUpdated(channel_info) => {
+                self.state.connected_channel_info = Some(channel_info);
+            }
+            AppStateDiff::SetSettingsChannelError(error) => {
+                self.state.connected_channel_name = None;
+                self.state.connected_channel_info = None;
+                self.state.settings.channel_name_error = Some(error);
+            }
+        }
+    }
+
+    pub fn register_new_twitch_event(&mut self, event: TwitchEvent) {
+        match event {
+            TwitchEvent::Ping(_) => {}
+            TwitchEvent::Pong(_) => {}
+            TwitchEvent::RoomState(state) => {
+                if let Some(duration) = state.slow_mode {
+                    if duration.is_zero() {
+                        self.state.chat.is_slow_mode = None;
+                    } else {
+                        self.state.chat.is_slow_mode = Some(duration);
+                    }
+                }
+
+                if let Some(state) = state.emote_only {
+                    self.state.chat.is_emote_only = state;
+                }
+
+                if let Some(followers_only_mode) = state.follwers_only {
+                    if let FollowersOnlyMode::Enabled(follow_duration) = followers_only_mode {
+                        self.state.chat.is_follow_only = Some(follow_duration);
+                    } else {
+                        self.state.chat.is_follow_only = None;
+                    }
+                }
+
+                if let Some(state) = state.subscribers_only {
+                    self.state.chat.is_subscriber_only = state;
+                }
+            }
+            TwitchEvent::ClearMsg(clear_msg) => {
+                for event in self.state.chat.events.items.iter_mut().rev() {
+                    if let TwitchEvent::Privmsg(privmsg) = event
+                        && privmsg.message_id == clear_msg.message_id
+                    {
+                        privmsg.mark_deleted();
+                        break;
+                    }
+                }
+
+                self.state.chat.events.items.push(TwitchEvent::Notice(NoticeMessage {
+                    channel_login: None,
+                    message_id: None,
+                    message_text: format!(
+                        "Message deleted: {}: {}",
+                        clear_msg.sender_login, clear_msg.message_text
+                    ),
+                    source: IRCMessage {
+                        tags: IRCTags::default(),
+                        prefix: None,
+                        command: String::from("NOTICE"),
+                        params: Vec::new(),
+                    },
+                }));
+            }
+            TwitchEvent::ClearChat(clear_chat) => match clear_chat.action {
+                ClearChatAction::ChatCleared => {
+                    // dont actually remove the messages, since this is a streamer tool in the
+                    // first place
+                    self.state.chat.events.items.push(TwitchEvent::Notice(NoticeMessage {
+                        channel_login: None,
+                        message_id: None,
+                        message_text: String::from("Chat has been cleared."),
+                        source: IRCMessage {
+                            tags: IRCTags::default(),
+                            prefix: None,
+                            command: String::from("NOTICE"),
+                            params: Vec::new(),
+                        },
+                    }));
+                }
+                // low duration timeouts are used to clear messages usually
+                ClearChatAction::UserTimedOut {
+                    user_login,
+                    user_id,
+                    timeout_length,
+                    ..
+                } if timeout_length.lt(&Duration::from_secs(5)) => {
+                    for event in self.state.chat.events.items.iter_mut().rev() {
+                        if let TwitchEvent::Privmsg(privmsg) = event
+                            && privmsg.sender.id == user_id
+                        {
+                            privmsg.mark_deleted();
+                        }
+                    }
+                    self.state.chat.events.items.push(TwitchEvent::Notice(NoticeMessage {
+                        channel_login: None,
+                        message_id: None,
+                        message_text: format!("{user_login}'s messages have been deleted."),
+                        source: IRCMessage {
+                            tags: IRCTags::default(),
+                            prefix: None,
+                            command: String::from("NOTICE"),
+                            params: Vec::new(),
+                        },
+                    }));
+                }
+                ClearChatAction::UserTimedOut {
+                    user_login,
+                    user_id,
+                    timeout_length,
+                } => {
+                    for event in self.state.chat.events.items.iter_mut().rev() {
+                        if let TwitchEvent::Privmsg(privmsg) = event
+                            && privmsg.sender.id == user_id
+                        {
+                            privmsg.mark_timeouted();
+                        }
+                    }
+                    self.state.chat.events.items.push(TwitchEvent::Notice(NoticeMessage {
+                        channel_login: None,
+                        message_id: None,
+                        message_text: format!(
+                            "{user_login} has been timed out for {} seconds.",
+                            timeout_length.as_secs()
+                        ),
+                        source: IRCMessage {
+                            tags: IRCTags::default(),
+                            prefix: None,
+                            command: String::from("NOTICE"),
+                            params: Vec::new(),
+                        },
+                    }));
+                }
+                ClearChatAction::UserBanned { user_login, user_id } => {
+                    for event in self.state.chat.events.items.iter_mut().rev() {
+                        if let TwitchEvent::Privmsg(privmsg) = event
+                            && privmsg.sender.id == user_id
+                        {
+                            privmsg.mark_banned();
+                        }
+                    }
+                    self.state.chat.events.items.push(TwitchEvent::Notice(NoticeMessage {
+                        channel_login: None,
+                        message_id: None,
+                        message_text: format!("{user_login} has been banned."),
+                        source: IRCMessage {
+                            tags: IRCTags::default(),
+                            prefix: None,
+                            command: String::from("NOTICE"),
+                            params: Vec::new(),
+                        },
+                    }));
+                }
+            },
+            event => {
+                self.state.chat.events.items.push(event);
+            }
+        }
     }
 }

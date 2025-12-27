@@ -6,19 +6,30 @@ pub mod app;
 pub mod engine;
 pub mod models;
 pub mod schema;
-pub mod state;
 pub mod twitch;
 pub mod ui;
 pub mod workers;
 
 use anyhow::Result;
-use eframe::{EframePumpStatus, UserEvent};
+use eframe::{EframePumpStatus, NativeOptions, UserEvent, egui::ViewportBuilder};
 use tokio::task::LocalSet;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::event_loop::{ControlFlow, EventLoop};
 
 use crate::app::App;
+
+fn default_window_options() -> NativeOptions {
+    let window_options = NativeOptions {
+        viewport: ViewportBuilder::default()
+            .with_title("Ruey")
+            .with_inner_size([1200.0, 720.0])
+            .with_min_inner_size([1200.0, 720.0]),
+        ..Default::default()
+    };
+
+    return window_options;
+}
 
 #[cfg(unix)]
 fn main() -> Result<()> {
@@ -36,7 +47,7 @@ fn main() -> Result<()> {
 
     let mut egui_app = eframe::create_native(
         env!("CARGO_PKG_NAME"),
-        App::default_window_options(),
+        default_window_options(),
         Box::new(|cctx| Ok(App::new(cctx))),
         &egui_eventloop,
     );
@@ -86,7 +97,7 @@ fn main() -> Result<()> {
 
     let mut egui_app = eframe::create_native(
         env!("CARGO_PKG_NAME"),
-        App::default_window_options(),
+        default_window_options(),
         Box::new(|cctx| Ok(App::new(cctx))),
         &egui_eventloop,
     );

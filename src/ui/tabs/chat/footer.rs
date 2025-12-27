@@ -6,9 +6,11 @@ use egui_toast::ToastKind;
 use twitch_api::helix::channels::ChannelInformation;
 
 use crate::{
-    state::{AppState, AppStateDiff, TwitchAccount},
-    twitch::api::twitch_send_message,
-    ui::util::show_toast,
+    twitch::{api::twitch_send_message, types::TwitchAccount},
+    ui::{
+        state::{AppState, AppStateDiff},
+        util::show_toast,
+    },
 };
 
 pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {

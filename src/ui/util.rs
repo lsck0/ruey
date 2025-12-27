@@ -3,7 +3,7 @@ use std::sync::mpsc;
 use eframe::egui::WidgetText;
 use egui_toast::{Toast, ToastKind, ToastOptions};
 
-use crate::state::AppStateDiff;
+use crate::ui::state::AppStateDiff;
 
 pub fn show_toast(diff_tx: &mpsc::Sender<AppStateDiff>, kind: ToastKind, message: &str) {
     diff_tx

@@ -1,8 +1,16 @@
+use twitch_api::HelixClient;
 use twitch_irc::message::{
     ClearChatMessage, ClearMsgMessage, GlobalUserStateMessage, JoinMessage, NoticeMessage, PartMessage, PingMessage,
     PongMessage, PrivmsgMessage, ReconnectMessage, RoomStateMessage, ServerMessage, UserNoticeMessage,
     UserStateMessage, WhisperMessage,
 };
+use twitch_oauth2::UserToken;
+
+#[derive(Clone)]
+pub struct TwitchAccount {
+    pub client: HelixClient<'static, reqwest::Client>,
+    pub token: UserToken,
+}
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
