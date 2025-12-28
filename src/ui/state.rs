@@ -1,3 +1,4 @@
+use anyhow::Result;
 use egui_file_dialog::FileDialog;
 use egui_toast::{Toast, Toasts};
 use tokio::task::AbortHandle;
@@ -5,9 +6,9 @@ use twitch_api::{HelixClient, helix::channels::ChannelInformation};
 use twitch_oauth2::UserToken;
 
 use crate::{
-    models::{SqlitePool, settings::Settings},
+    models::SqlitePool,
     twitch::{
-        api::{twitch_get_channel_from_login, twitch_link_account, twitch_relink_account},
+        api::{twitch_get_channel_from_login, twitch_link_account},
         types::TwitchAccount,
     },
     ui::tabs::{
@@ -62,10 +63,8 @@ pub enum AppStateDiff {
 }
 
 impl AppState {
-    pub fn new(db_pool: SqlitePool, channels: MPSCChannels, toasts: Toasts) -> Self {
-        let stored_settings = Settings::get_stored_settings(&db_pool);
-
-        let mut app_state = Self {
+    pub fn new(db_pool: SqlitePool, channels: MPSCChannels, toasts: Toasts) -> Result<Self> {
+        return Ok(Self {
             connected_to_internet: true,
 
             // global
@@ -92,25 +91,7 @@ impl AppState {
             database: DatabaseState::default(),
             settings: SettingsState::default(),
             docs: DocsState::default(),
-        };
-
-        if let Some(zoom_factor) = stored_settings.zoom_factor {
-            app_state.zoom_factor = zoom_factor;
-        }
-
-        if let Some(channel_name) = stored_settings.channel {
-            app_state.settings.channel_name = channel_name;
-        }
-
-        if let Some(access_token) = stored_settings.user_access_token
-            && let Some(refresh_token) = stored_settings.user_refresh_token
-        {
-            twitch_relink_account(&app_state.channels.ui_diff_tx, &access_token, &refresh_token);
-        }
-
-        app_state.start_twitch_irc_worker();
-
-        return app_state;
+        });
     }
 
     pub fn start_twitch_irc_worker(&mut self) {

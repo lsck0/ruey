@@ -1,4 +1,3 @@
-pub mod actions;
 pub mod kv_store;
 pub mod settings;
 

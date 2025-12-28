@@ -1,8 +1,9 @@
+// TODO: REFACTOR THIS FILE
+use anyhow::Result;
 use diesel::prelude::*;
+use egui_dock::DockState;
 
-use crate::models::SqlitePool;
-
-// TODO: remember window size
+use crate::{app::App, models::SqlitePool, twitch::api::twitch_relink_account, ui::tabs::Tabs};
 
 #[derive(Debug, Default, Clone, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::settings)]
@@ -28,36 +29,79 @@ pub struct NewSettings {
 }
 
 impl Settings {
-    pub fn get_stored_settings(pool: &SqlitePool) -> Settings {
-        use crate::schema::settings::dsl::*;
+    pub fn restore_state(app: &mut App) -> Result<()> {
+        let stored_settings = Settings::load(&app.state.db_pool)?;
 
-        let mut db = pool.get().expect("Failed to get a connection from the pool.");
+        if let Some(tree_str) = stored_settings.tree {
+            let saved_tree = serde_json::from_str::<DockState<Tabs>>(&tree_str)?;
+            app.tree = saved_tree;
+        }
 
-        return settings
-            .first::<Settings>(&mut db)
-            .optional()
-            .expect("Failed to query settings")
-            .unwrap_or_else(|| {
-                diesel::insert_into(crate::schema::settings::table)
-                    .values(NewSettings::default())
-                    .execute(&mut db)
-                    .expect("Failed to insert default settings");
+        if let Some(zoom_factor) = stored_settings.zoom_factor {
+            app.state.zoom_factor = zoom_factor;
+        }
 
-                return Settings {
-                    id: 1,
-                    ..Default::default()
-                };
-            });
+        if let Some(channel_name) = stored_settings.channel {
+            app.state.settings.channel_name = channel_name;
+        }
+
+        if let Some(access_token) = stored_settings.user_access_token
+            && let Some(refresh_token) = stored_settings.user_refresh_token
+        {
+            twitch_relink_account(&app.state.channels.ui_diff_tx, &access_token, &refresh_token);
+        }
+
+        return Ok(());
     }
 
-    pub fn store_settings(&self, pool: &SqlitePool) {
+    pub fn save_state(app: &App) -> Result<()> {
+        let settings = Settings {
+            id: 1,
+            zoom_factor: Some(app.state.zoom_factor),
+            tree: Some(serde_json::to_string_pretty(&app.tree).unwrap()),
+            channel: Some(app.state.settings.channel_name.clone()),
+            user_access_token: app
+                .state
+                .twitch_account
+                .clone()
+                .map(|account| account.token.access_token)
+                .map(|token| token.take()),
+            user_refresh_token: app
+                .state
+                .twitch_account
+                .clone()
+                .and_then(|account| account.token.refresh_token)
+                .map(|token| token.take()),
+        };
+        settings.store(&app.state.db_pool)?;
+
+        return Ok(());
+    }
+
+    fn load(pool: &SqlitePool) -> Result<Settings> {
         use crate::schema::settings::dsl::*;
 
-        let mut db = pool.get().expect("Failed to get a connection from the pool.");
+        let mut db = pool.get()?;
 
-        diesel::delete(settings)
-            .execute(&mut db)
-            .expect("Failed to delete existing settings");
+        return Ok(settings.first::<Settings>(&mut db).optional()?.unwrap_or_else(|| {
+            diesel::insert_into(crate::schema::settings::table)
+                .values(NewSettings::default())
+                .execute(&mut db)
+                .unwrap();
+
+            return Settings {
+                id: 1,
+                ..Default::default()
+            };
+        }));
+    }
+
+    fn store(&self, pool: &SqlitePool) -> Result<()> {
+        use crate::schema::settings::dsl::*;
+
+        let mut db = pool.get()?;
+
+        diesel::delete(settings).execute(&mut db)?;
 
         diesel::insert_into(crate::schema::settings::table)
             .values(NewSettings {
@@ -67,7 +111,8 @@ impl Settings {
                 user_access_token: self.user_access_token.clone(),
                 user_refresh_token: self.user_refresh_token.clone(),
             })
-            .execute(&mut db)
-            .expect("Failed to store settings");
+            .execute(&mut db)?;
+
+        return Ok(());
     }
 }

@@ -11,6 +11,7 @@ pub struct KvStore {
     pub bucket: String,
     pub key: String,
     pub value: String,
+    // TODO: add a type field
 }
 
 impl KvStore {
