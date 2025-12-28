@@ -75,11 +75,12 @@ pub fn render_chat_history(ui: &mut Ui, state: &mut AppState) {
                     render_chat_message(
                         ui,
                         msg,
-                        &state.diff_tx,
+                        &state.channels.ui_diff_tx,
                         &state.twitch_account,
                         &state.connected_channel_info,
                         &mut state.chat.user_query,
                         logged_in_user_name,
+                        state.chat.show_timestamps,
                     );
                 }
                 _ => {}

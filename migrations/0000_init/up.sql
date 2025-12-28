@@ -16,7 +16,7 @@ CREATE INDEX kv_store_bucket_idx ON kv_store(bucket);
 CREATE TABLE settings (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     zoom_factor REAL,
-    tree BLOB,
+    tree TEXT,
     channel TEXT,
     user_access_token TEXT,
     user_refresh_token TEXT

@@ -1,6 +1,7 @@
 pub mod actions;
 pub mod chat;
 pub mod database;
+pub mod docs;
 pub mod logs;
 pub mod settings;
 pub mod stats;

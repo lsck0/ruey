@@ -21,7 +21,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
             {
                 ui.menu_button("Chat Settings", |ui| {
                     if ui.button("Clear Chat").clicked() {
-                        twitch_delete_all_messages(&state.diff_tx, account, channel);
+                        twitch_delete_all_messages(&state.channels.ui_diff_tx, account, channel);
                     }
 
                     ui.menu_button("Slow Mode", |ui| {
@@ -29,7 +29,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             let mut body = UpdateChatSettingsBody::default();
                             body.slow_mode = Some(false);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         ui.separator();
@@ -39,7 +39,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.slow_mode = Some(true);
                             body.slow_mode_wait_time = Some(3);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("5 Seconds").clicked() {
@@ -47,7 +47,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.slow_mode = Some(true);
                             body.slow_mode_wait_time = Some(5);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("10 Seconds").clicked() {
@@ -55,7 +55,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.slow_mode = Some(true);
                             body.slow_mode_wait_time = Some(10);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("20 Seconds").clicked() {
@@ -63,7 +63,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.slow_mode = Some(true);
                             body.slow_mode_wait_time = Some(20);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("30 Seconds").clicked() {
@@ -71,7 +71,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.slow_mode = Some(true);
                             body.slow_mode_wait_time = Some(30);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("60 Seconds").clicked() {
@@ -79,7 +79,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.slow_mode = Some(true);
                             body.slow_mode_wait_time = Some(60);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("120 Seconds").clicked() {
@@ -87,7 +87,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.slow_mode = Some(true);
                             body.slow_mode_wait_time = Some(120);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
                     });
 
@@ -95,7 +95,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                         let mut body = UpdateChatSettingsBody::default();
                         body.emote_mode = Some(!state.chat.is_emote_only);
 
-                        twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                     }
 
                     ui.menu_button("Follow-Only Chat", |ui| {
@@ -103,7 +103,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             let mut body = UpdateChatSettingsBody::default();
                             body.follower_mode = Some(false);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         ui.separator();
@@ -112,7 +112,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             let mut body = UpdateChatSettingsBody::default();
                             body.follower_mode = Some(true);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("10 Minutes").clicked() {
@@ -120,7 +120,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.follower_mode = Some(true);
                             body.follower_mode_duration = Some(10); // duration is in minutes
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("30 Minutes").clicked() {
@@ -128,7 +128,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.follower_mode = Some(true);
                             body.follower_mode_duration = Some(30);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("1 Hour").clicked() {
@@ -136,7 +136,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.follower_mode = Some(true);
                             body.follower_mode_duration = Some(60);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("1 Day").clicked() {
@@ -144,7 +144,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.follower_mode = Some(true);
                             body.follower_mode_duration = Some(24 * 60);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("1 Week").clicked() {
@@ -152,7 +152,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.follower_mode = Some(true);
                             body.follower_mode_duration = Some(7 * 24 * 60);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("1 Month").clicked() {
@@ -160,7 +160,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.follower_mode = Some(true);
                             body.follower_mode_duration = Some(30 * 24 * 60);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
 
                         if ui.button("3 Months").clicked() {
@@ -168,7 +168,7 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                             body.follower_mode = Some(true);
                             body.follower_mode_duration = Some(3 * 30 * 24 * 60);
 
-                            twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                            twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                         }
                     });
 
@@ -176,12 +176,17 @@ pub fn render_chat_header(ui: &mut Ui, state: &mut AppState) {
                         let mut body = UpdateChatSettingsBody::default();
                         body.subscriber_mode = Some(!state.chat.is_subscriber_only);
 
-                        twitch_patch_chat_settings(&state.diff_tx, account, channel, body);
+                        twitch_patch_chat_settings(&state.channels.ui_diff_tx, account, channel, body);
                     }
                 });
             }
 
             ui.menu_button("Show", |ui| {
+                if ui.selectable_label(state.chat.show_timestamps, "Timestamps").clicked() {
+                    state.chat.show_timestamps ^= true;
+                }
+
+                ui.separator();
                 ui.label("Chatters");
                 if ui
                     .selectable_label(state.chat.show_messages_by_broadcaster, "Broadcaster")

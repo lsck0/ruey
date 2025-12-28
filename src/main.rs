@@ -1,5 +1,5 @@
 #![allow(clippy::needless_return)]
-#![forbid(unsafe_code, clippy::unwrap_used)]
+#![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod app;
@@ -48,7 +48,7 @@ fn main() -> Result<()> {
     let mut egui_app = eframe::create_native(
         env!("CARGO_PKG_NAME"),
         default_window_options(),
-        Box::new(|cctx| Ok(App::new(cctx))),
+        Box::new(|cctx| Ok(App::new(cctx)?)),
         &egui_eventloop,
     );
 
@@ -98,7 +98,7 @@ fn main() -> Result<()> {
     let mut egui_app = eframe::create_native(
         env!("CARGO_PKG_NAME"),
         default_window_options(),
-        Box::new(|cctx| Ok(App::new(cctx))),
+        Box::new(|cctx| Ok(App::new(cctx)?)),
         &egui_eventloop,
     );
 

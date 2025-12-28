@@ -26,18 +26,3 @@ pub fn create_database_pool() -> Result<SqlitePool> {
 
     return Ok(pool);
 }
-
-#[deprecated]
-pub fn initialize_database() -> SqlitePool {
-    let manager = ConnectionManager::<SqliteConnection>::new(DATABASE_URL);
-
-    let pool = Pool::builder()
-        .build(manager)
-        .expect("Failed to create the database pool.");
-
-    let mut conn = pool.get().expect("Failed to get a connection from the pool.");
-    conn.run_pending_migrations(MIGRATIONS)
-        .expect("Failed to run migrations.");
-
-    return pool;
-}

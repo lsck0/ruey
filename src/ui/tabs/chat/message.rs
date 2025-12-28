@@ -25,6 +25,7 @@ pub fn render_chat_message(
     channel: &Option<ChannelInformation>,
     chat_user_query: &mut String,
     logged_in_user_name: Option<String>,
+    show_timestamps: bool,
 ) {
     ui.horizontal_wrapped(|ui| {
         ui.style_mut().spacing.item_spacing.x = 0.0;
@@ -33,13 +34,15 @@ pub fn render_chat_message(
         message.message_text = message.message_text.trim().to_owned();
 
         // timestamp
-        ui.label(RichText::new(
-            message
-                .server_timestamp
-                .with_timezone(&Local)
-                .format("%H:%M:%S ")
-                .to_string(),
-        ));
+        if show_timestamps {
+            ui.label(RichText::new(
+                message
+                    .server_timestamp
+                    .with_timezone(&Local)
+                    .format("%H:%M:%S ")
+                    .to_string(),
+            ));
+        }
 
         // ping?
         if let Some(logged_in_user_name) = &logged_in_user_name
@@ -76,18 +79,8 @@ pub fn render_chat_message(
         // sender
         let sender = ui
             .label(
-                RichText::new(format!("{}: ", message.sender.name)).color(if message.is_first_message() {
-                    Color32::YELLOW
-                } else if message.is_by_broadcaster() {
-                    Color32::RED
-                } else if message.is_by_lead_mod() {
-                    Color32::DARK_GREEN
-                } else if message.is_by_mod() {
-                    Color32::GREEN
-                } else if message.is_by_vip() {
-                    Color32::MAGENTA
-                } else if message.is_by_subscriber() {
-                    Color32::CYAN
+                RichText::new(format!("{}: ", message.sender.name)).color(if let Some(color) = message.name_color {
+                    Color32::from_rgb(color.r, color.g, color.b)
                 } else {
                     Color32::WHITE
                 }),

@@ -2,13 +2,15 @@ use diesel::prelude::*;
 
 use crate::models::SqlitePool;
 
+// TODO: remember window size
+
 #[derive(Debug, Default, Clone, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::settings)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Settings {
     pub id: i32,
     pub zoom_factor: Option<f32>,
-    pub tree: Option<Vec<u8>>,
+    pub tree: Option<String>,
     pub channel: Option<String>,
     pub user_access_token: Option<String>,
     pub user_refresh_token: Option<String>,
@@ -19,7 +21,7 @@ pub struct Settings {
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct NewSettings {
     pub zoom_factor: Option<f32>,
-    pub tree: Option<Vec<u8>>,
+    pub tree: Option<String>,
     pub channel: Option<String>,
     pub user_access_token: Option<String>,
     pub user_refresh_token: Option<String>,

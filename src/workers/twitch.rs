@@ -1,18 +1,17 @@
 use std::sync::mpsc;
 
+use anyhow::Result;
 use tokio::task::AbortHandle;
 use tracing::trace;
 use twitch_irc::{ClientConfig, SecureTCPTransport, TwitchIRCClient, login::StaticLoginCredentials};
 
 use crate::twitch::types::TwitchEvent;
 
-pub fn start_twitch_irc_worker(channel_name: String, txs: Vec<mpsc::Sender<TwitchEvent>>) -> Option<AbortHandle> {
+pub fn worker_start_twitch_irc(channel_name: String, txs: Vec<mpsc::Sender<TwitchEvent>>) -> Result<AbortHandle> {
     let config = ClientConfig::default();
     let (incoming_messages, client) = TwitchIRCClient::<SecureTCPTransport, StaticLoginCredentials>::new(config);
 
-    if client.join(channel_name).is_err() {
-        return None;
-    }
+    client.join(channel_name)?;
 
     let abort_handle = tokio::spawn(async move {
         let mut incoming_messages = incoming_messages;
@@ -27,11 +26,17 @@ pub fn start_twitch_irc_worker(channel_name: String, txs: Vec<mpsc::Sender<Twitc
             trace!("Received Twtich IRC event: {:?}", event);
 
             for tx in &txs {
-                tx.send(event.clone()).expect("Failed to send Twitch event");
+                tx.send(event.clone()).unwrap();
             }
         }
     })
     .abort_handle();
 
-    return Some(abort_handle);
+    return Ok(abort_handle);
+}
+
+pub fn worker_start_twitch_pubsub(_txs: Vec<mpsc::Sender<TwitchEvent>>) -> Result<AbortHandle> {
+    let abort_handle = tokio::spawn(async move {}).abort_handle();
+
+    return Ok(abort_handle);
 }

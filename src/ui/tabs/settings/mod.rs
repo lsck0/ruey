@@ -25,7 +25,6 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
                 state.stop_twitch_irc_worker();
             }
         } else {
-            // BUG: this doesnt get reset if you connect successfully after an error
             let mut channel_edit = TextEdit::singleline(&mut state.settings.channel_name).char_limit(25);
             if state.settings.channel_name_error.is_some() {
                 channel_edit = channel_edit.text_color(Color32::RED);
@@ -34,6 +33,7 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
 
             if ui.button("Connect").clicked() {
                 state.start_twitch_irc_worker();
+                state.settings.channel_name_error = None;
             }
 
             if let Some(error) = &state.settings.channel_name_error {
@@ -79,10 +79,7 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
     });
 
     if ui.button("Reset Layout").clicked() {
-        state
-            .diff_tx
-            .send(AppStateDiff::ResetLayout)
-            .expect("Failed to send reset layout diff");
+        state.channels.ui_diff_tx.send(AppStateDiff::ResetLayout).unwrap();
     }
 
     ui.separator();
@@ -91,10 +88,7 @@ pub fn show_settings_ui(ui: &mut egui::Ui, state: &mut AppState) {
 
     ui.horizontal(|ui| {
         if ui.button("Persist Settings").clicked() {
-            state
-                .diff_tx
-                .send(AppStateDiff::SaveSettings)
-                .expect("Failed to send save settings diff");
+            state.channels.ui_diff_tx.send(AppStateDiff::SaveSettings).unwrap();
         }
 
         ui.label("(This happens automatically every 30 seconds)")

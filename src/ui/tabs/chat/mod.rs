@@ -25,6 +25,8 @@ pub struct ChatState {
     pub is_follow_only: Option<Duration>, // follow duration
     pub is_subscriber_only: bool,
 
+    pub show_timestamps: bool,
+
     pub show_messages_by_broadcaster: bool,
     pub show_messages_by_moderator: bool,
     pub show_messages_by_vip: bool,
@@ -67,6 +69,8 @@ impl Default for ChatState {
             is_emote_only: false,
             is_follow_only: None,
             is_subscriber_only: false,
+
+            show_timestamps: true,
 
             show_messages_by_broadcaster: true,
             show_messages_by_moderator: true,

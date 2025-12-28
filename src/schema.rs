@@ -21,7 +21,7 @@ diesel::table! {
     settings (id) {
         id -> Integer,
         zoom_factor -> Nullable<Float>,
-        tree -> Nullable<Binary>,
+        tree -> Nullable<Text>,
         channel -> Nullable<Text>,
         user_access_token -> Nullable<Text>,
         user_refresh_token -> Nullable<Text>,

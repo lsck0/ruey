@@ -1,12 +1,12 @@
-use std::{net::TcpStream, sync::mpsc, time::Duration};
+use std::{sync::mpsc, time::Duration};
 
+use anyhow::Result;
 use eframe::{
-    CreationContext, NativeOptions,
-    egui::{Align2, Direction, ViewportBuilder, pos2},
+    CreationContext,
+    egui::{Align2, Direction, WidgetText, pos2},
 };
 use egui_dock::DockState;
-use egui_toast::{ToastKind, Toasts};
-use serde_binary::binary_stream::Endian;
+use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use strum::IntoEnumIterator;
 use twitch_irc::message::{ClearChatAction, FollowersOnlyMode, IRCMessage, IRCTags, NoticeMessage};
 
@@ -17,12 +17,11 @@ use crate::{
         types::{PrivmsgMessageExt, TwitchAccount, TwitchEvent},
     },
     ui::{
+        fonts::load_fonts,
         state::{AppState, AppStateDiff},
-        style::load_fonts,
         tabs::Tabs,
-        util::show_toast,
     },
-    workers::action::start_action_worker,
+    workers,
 };
 
 pub struct App {
@@ -31,14 +30,14 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(cctx: &CreationContext) -> Box<Self> {
+    pub fn new(cctx: &CreationContext) -> Result<Box<Self>> {
         load_fonts(cctx);
 
-        let db_pool = models::initialize_database();
+        let db_pool = models::create_database_pool()?;
+        let channels = workers::create_workers();
 
-        // BUG: this does not restore the tabs properly
         let tree = if let Some(tree_str) = Settings::get_stored_settings(&db_pool).tree
-            && let Ok(saved_tree) = serde_binary::from_vec::<DockState<Tabs>>(tree_str, Endian::Big)
+            && let Ok(saved_tree) = serde_json::from_str::<DockState<Tabs>>(&tree_str)
         {
             saved_tree
         } else {
@@ -49,60 +48,36 @@ impl App {
             .anchor(Align2::RIGHT_TOP, pos2(10.0, 10.0))
             .direction(Direction::TopDown);
 
-        let (ui_diff_tx, ui_diff_rx) = mpsc::channel::<AppStateDiff>();
-        let (ui_event_tx, ui_event_rx) = mpsc::channel::<TwitchEvent>();
-        let (action_worker_tx, action_worker_rx) = mpsc::channel::<TwitchEvent>();
-        let twitch_event_txs = vec![ui_event_tx, action_worker_tx];
-
-        start_action_worker(action_worker_rx, ui_diff_tx.clone());
-        Self::start_background_tasks(ui_diff_tx.clone());
-
-        return Box::new(Self {
+        return Ok(Box::new(Self {
             tree,
-            state: AppState::new(db_pool, toasts, ui_diff_tx, ui_diff_rx, ui_event_rx, twitch_event_txs),
-        });
+            state: AppState::new(db_pool, channels, toasts),
+        }));
     }
 
-    fn start_background_tasks(ui_state_diff_tx: mpsc::Sender<AppStateDiff>) {
-        // save settings every 30 seconds
-        let state_diff_tx_1 = ui_state_diff_tx.clone();
-        tokio::spawn(async move {
-            loop {
-                state_diff_tx_1
-                    .send(AppStateDiff::SaveSettings)
-                    .expect("Failed to send SaveSettings event");
-                tokio::time::sleep(Duration::from_secs(30)).await;
-            }
-        });
-
-        // check internet connection every 15 seconds
-        let state_diff_tx_2 = ui_state_diff_tx.clone();
-        tokio::spawn(async move {
-            let addr = String::from("1.1.1.1:53").parse().expect("Failed to parse address"); // cloudflare DNS
-
-            loop {
-                if TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok() {
-                    state_diff_tx_2
-                        .send(AppStateDiff::InternetConnected)
-                        .expect("Failed to send InternetConnected event");
-                } else {
-                    state_diff_tx_2
-                        .send(AppStateDiff::InternetDisconnected)
-                        .expect("Failed to send InternetDisconnected event");
-                }
-
-                tokio::time::sleep(Duration::from_secs(15)).await;
-            }
-        });
+    pub fn show_toast(diff_tx: &mpsc::Sender<AppStateDiff>, kind: ToastKind, message: &str) {
+        diff_tx
+            .send(AppStateDiff::ShowToast(Toast {
+                kind,
+                text: WidgetText::Text(String::from(message)),
+                options: ToastOptions::default().duration_in_seconds(3.0),
+                ..Toast::default()
+            }))
+            .unwrap();
     }
 
     pub fn apply_state_diff(&mut self, diff: AppStateDiff) {
         match diff {
+            AppStateDiff::InternetConnected => {
+                self.state.connected_to_internet = true;
+            }
+            AppStateDiff::InternetDisconnected => {
+                self.state.connected_to_internet = false;
+            }
             AppStateDiff::SaveSettings => {
                 let settings = Settings {
                     id: 1,
                     zoom_factor: Some(self.state.zoom_factor),
-                    tree: Some(serde_binary::to_vec(&self.tree, Endian::Big).expect("Failed to serialize dock state")),
+                    tree: Some(serde_json::to_string_pretty(&self.tree).expect("Failed to serialize dock state")),
                     channel: Some(self.state.settings.channel_name.clone()),
                     user_access_token: self
                         .state
@@ -122,18 +97,12 @@ impl App {
             AppStateDiff::ResetLayout => {
                 self.tree = DockState::new(Tabs::iter().collect());
             }
-            AppStateDiff::InternetConnected => {
-                self.state.connected_to_internet = true;
-            }
-            AppStateDiff::InternetDisconnected => {
-                self.state.connected_to_internet = false;
-            }
             AppStateDiff::ShowToast(toast) => {
                 self.state.toasts.add(toast);
             }
             AppStateDiff::AccountLinked(client, token) => {
-                show_toast(
-                    &self.state.diff_tx,
+                Self::show_toast(
+                    &self.state.channels.ui_diff_tx,
                     ToastKind::Success,
                     &format!("Logged in as {}.", token.login),
                 );
@@ -141,7 +110,7 @@ impl App {
                 self.state.twitch_account = Some(TwitchAccount { client, token });
                 if let Some(connected_channel_name) = &self.state.connected_channel_name {
                     twitch_get_channel_from_login(
-                        &self.state.diff_tx,
+                        &self.state.channels.ui_diff_tx,
                         self.state.twitch_account.as_ref().expect("unreachable"),
                         connected_channel_name,
                     );

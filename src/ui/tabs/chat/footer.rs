@@ -6,11 +6,9 @@ use egui_toast::ToastKind;
 use twitch_api::helix::channels::ChannelInformation;
 
 use crate::{
+    app::App,
     twitch::{api::twitch_send_message, types::TwitchAccount},
-    ui::{
-        state::{AppState, AppStateDiff},
-        util::show_toast,
-    },
+    ui::state::{AppState, AppStateDiff},
 };
 
 pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
@@ -28,19 +26,23 @@ pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
             && !state.chat.message_input.is_empty()
         {
             let Some(channel) = &state.connected_channel_info else {
-                show_toast(&state.diff_tx, ToastKind::Error, "You are not connected to a channel");
+                App::show_toast(
+                    &state.channels.ui_diff_tx,
+                    ToastKind::Error,
+                    "You are not connected to a channel",
+                );
                 return;
             };
 
             let Some(account) = &state.twitch_account else {
-                show_toast(&state.diff_tx, ToastKind::Error, "You are not logged in.");
+                App::show_toast(&state.channels.ui_diff_tx, ToastKind::Error, "You are not logged in.");
                 return;
             };
 
             if state.chat.message_input.trim().starts_with('/') {
-                run_command(&state.diff_tx, account, channel, &state.chat.message_input);
+                run_command(&state.channels.ui_diff_tx, account, channel, &state.chat.message_input);
             } else {
-                twitch_send_message(&state.diff_tx, account, channel, &state.chat.message_input);
+                twitch_send_message(&state.channels.ui_diff_tx, account, channel, &state.chat.message_input);
             }
 
             state.chat.message_input.clear();
@@ -51,8 +53,8 @@ pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
 
 fn run_command(
     diff_tx: &mpsc::Sender<AppStateDiff>,
-    account: &TwitchAccount,
-    channel: &ChannelInformation,
+    _account: &TwitchAccount,
+    _channel: &ChannelInformation,
     message: &str,
 ) -> bool {
     let parts: Vec<&str> = message.split_whitespace().collect();
@@ -67,11 +69,11 @@ fn run_command(
     match parts[0] {
         "/shoutout" => {
             if parts.len() < 2 {
-                show_toast(diff_tx, ToastKind::Error, "Usage: /shoutout <username>");
+                App::show_toast(diff_tx, ToastKind::Error, "Usage: /shoutout <username>");
                 return false;
             }
             let target_username = parts[1];
-            show_toast(
+            App::show_toast(
                 diff_tx,
                 ToastKind::Info,
                 &format!("Shoutout sent to {}", target_username),
@@ -79,7 +81,7 @@ fn run_command(
             true
         }
         _ => {
-            show_toast(diff_tx, ToastKind::Error, "Unknown command");
+            App::show_toast(diff_tx, ToastKind::Error, "Unknown command");
             return false;
         }
     }
