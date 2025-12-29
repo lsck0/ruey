@@ -42,7 +42,9 @@ pub fn render_chat_footer(ui: &mut Ui, state: &mut AppState) {
             if state.chat.message_input.trim().starts_with('/') {
                 run_command(&state.channels.ui_diff_tx, account, channel, &state.chat.message_input);
             } else {
-                twitch_send_message(&state.channels.ui_diff_tx, account, channel, &state.chat.message_input);
+                unsafe {
+                    twitch_send_message(state, &state.chat.message_input);
+                }
             }
 
             state.chat.message_input.clear();

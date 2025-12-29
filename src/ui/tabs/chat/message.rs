@@ -123,7 +123,9 @@ pub fn render_chat_message(
                 && !message.is_banned()
                 && ui.button("Delete Message").clicked()
             {
-                twitch_delete_message(diff_tx, account, channel, &message.message_id);
+                unsafe {
+                    // twitch_delete_message(diff_tx, account, channel, &message.message_id);
+                }
                 ui.close();
             }
 

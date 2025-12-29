@@ -6,5 +6,5 @@ use crate::ui::state::AppState;
 pub struct DatabaseState {}
 
 pub fn show_database_ui(ui: &mut egui::Ui, _state: &mut AppState) {
-    ui.label("unimplemented");
+    ui.label("Coming Soon...");
 }

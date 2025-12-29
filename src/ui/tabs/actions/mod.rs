@@ -6,5 +6,5 @@ use crate::ui::state::AppState;
 pub struct ActionsState {}
 
 pub fn show_actions_ui(ui: &mut egui::Ui, _state: &mut AppState) {
-    ui.label("unimplemented");
+    ui.label("Coming Soon...");
 }

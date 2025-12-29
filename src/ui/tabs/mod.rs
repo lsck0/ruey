@@ -10,6 +10,7 @@ use eframe::egui;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
 
+#[allow(unused_imports)]
 use crate::ui::{
     state::AppState,
     tabs::{
@@ -23,8 +24,8 @@ pub enum Tabs {
     Chat,
     Stats,
     Actions,
-    Logs,
     Database,
+    Logs,
     Settings,
     Docs,
 }
@@ -42,13 +43,13 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
         match tab {
-            Tabs::Actions => show_actions_ui(ui, self.state),
             Tabs::Chat => show_chat_ui(ui, self.state),
+            Tabs::Stats => show_stats_ui(ui, self.state),
+            Tabs::Actions => show_actions_ui(ui, self.state),
             Tabs::Database => show_database_ui(ui, self.state),
-            Tabs::Docs => show_docs_ui(ui, self.state),
             Tabs::Logs => show_logs_ui(ui, self.state),
             Tabs::Settings => show_settings_ui(ui, self.state),
-            Tabs::Stats => show_stats_ui(ui, self.state),
+            Tabs::Docs => show_docs_ui(ui, self.state),
         };
     }
 

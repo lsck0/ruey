@@ -28,6 +28,22 @@ impl eframe::App for App {
         }
         ctx.set_zoom_factor(self.state.zoom_factor);
 
+        // check if we failed to join a channel
+        if self.state.did_we_try_to_join
+            && !self.state.did_we_join
+            && let Some(when) = self.state.when_did_we_try_to_join
+            && when.elapsed().as_secs() >= 1
+        {
+            self.state
+                .channels
+                .ui_diff_tx
+                .send(state::AppStateDiff::SetSettingsChannelError(String::from(
+                    "Channel does not exist.",
+                )))
+                .unwrap();
+            self.state.stop_twitch_irc_worker();
+        }
+
         // ui drawing
         if self.state.connected_to_internet {
             DockArea::new(&mut self.tree)

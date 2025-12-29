@@ -3,13 +3,14 @@ use egui_file_dialog::FileDialog;
 use egui_toast::{Toast, Toasts};
 use tokio::task::AbortHandle;
 use twitch_api::{HelixClient, helix::channels::ChannelInformation};
+use twitch_irc::message::{IRCMessage, IRCTags, NoticeMessage};
 use twitch_oauth2::UserToken;
 
 use crate::{
     models::SqlitePool,
     twitch::{
         api::{twitch_get_channel_from_login, twitch_link_account},
-        types::TwitchAccount,
+        types::{TwitchAccount, TwitchEvent},
     },
     ui::tabs::{
         actions::ActionsState, chat::ChatState, database::DatabaseState, docs::DocsState, logs::LogsState,
@@ -28,6 +29,10 @@ pub struct AppState {
     pub twitch_pubsub_worker_handle: Option<AbortHandle>,
 
     // account and channel
+    pub did_we_try_to_join: bool,
+    pub when_did_we_try_to_join: Option<std::time::Instant>,
+    pub did_we_join: bool,
+
     pub connected_channel_name: Option<String>,
     pub connected_channel_info: Option<ChannelInformation>,
     pub twitch_account: Option<TwitchAccount>,
@@ -79,6 +84,9 @@ impl AppState {
             channels,
 
             // twitch
+            did_we_try_to_join: false,
+            when_did_we_try_to_join: None,
+            did_we_join: false,
             connected_channel_name: None,
             connected_channel_info: None,
             twitch_account: None,
@@ -94,6 +102,20 @@ impl AppState {
         });
     }
 
+    pub fn show_notice(&mut self, message: String) {
+        self.chat.events.items.push(TwitchEvent::Notice(NoticeMessage {
+            channel_login: None,
+            message_id: None,
+            message_text: message,
+            source: IRCMessage {
+                tags: IRCTags::default(),
+                prefix: None,
+                command: String::from("NOTICE"),
+                params: Vec::new(),
+            },
+        }));
+    }
+
     pub fn start_twitch_irc_worker(&mut self) {
         if self.settings.channel_name.is_empty() {
             return;
@@ -105,6 +127,10 @@ impl AppState {
             self.chat.events.items.clear();
         }
 
+        // log attempt
+        self.did_we_try_to_join = true;
+        self.when_did_we_try_to_join = Some(std::time::Instant::now());
+
         // start new worker
         match worker_start_twitch_irc(
             self.settings.channel_name.clone(),
@@ -114,12 +140,10 @@ impl AppState {
                 self.twitch_irc_worker_handle = Some(handle);
                 self.connected_channel_name = Some(self.settings.channel_name.clone());
 
-                if let Some(account) = &self.twitch_account {
-                    twitch_get_channel_from_login(
-                        &self.channels.ui_diff_tx,
-                        account,
-                        self.connected_channel_name.as_ref().unwrap(),
-                    );
+                if self.twitch_account.is_some() {
+                    unsafe {
+                        twitch_get_channel_from_login(self, self.connected_channel_name.as_ref().unwrap());
+                    }
                 }
             }
             Err(_) => {
@@ -136,7 +160,12 @@ impl AppState {
     pub fn stop_twitch_irc_worker(&mut self) {
         if let Some(handle) = &self.twitch_irc_worker_handle {
             handle.abort();
+            self.show_notice(format!("Left channel {}.", self.settings.channel_name));
         }
+
+        self.did_we_try_to_join = false;
+        self.when_did_we_try_to_join = None;
+        self.did_we_join = false;
 
         self.twitch_irc_worker_handle = None;
         self.connected_channel_name = None;
@@ -153,7 +182,7 @@ impl AppState {
     }
 
     pub fn link_twitch_account(&mut self) {
-        twitch_link_account(&self.channels.ui_diff_tx);
+        twitch_link_account(self);
     }
 
     pub fn unlink_twitch_account(&mut self) {

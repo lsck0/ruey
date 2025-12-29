@@ -1,4 +1,3 @@
-// TODO: REFACTOR THIS FILE
 use std::{sync::mpsc, time::Duration};
 
 use egui_toast::ToastKind;
@@ -14,35 +13,35 @@ use twitch_api::{
 };
 use twitch_oauth2::{DeviceUserTokenBuilder, Scope, UserToken};
 
-use crate::{app::App, twitch::types::TwitchAccount, ui::state::AppStateDiff};
+use crate::{
+    app::App,
+    twitch::types::TwitchAccount,
+    ui::state::{AppState, AppStateDiff},
+};
 
 const RUEY_CLIENT_ID: &str = env!("RUEY_CLIENT_ID");
 
-pub fn twitch_link_account(diff_tx: &mpsc::Sender<AppStateDiff>) {
-    let diff_tx = diff_tx.clone();
+pub fn twitch_link_account(state: &AppState) {
+    let ui_diff_tx = state.channels.ui_diff_tx.clone();
 
     tokio::spawn(async move {
         let client: HelixClient<reqwest::Client> = HelixClient::with_client(ClientDefault::default_client());
         let mut builder = DeviceUserTokenBuilder::new(RUEY_CLIENT_ID, Scope::all());
-        let code = builder
-            .start(&client)
-            .await
-            .expect("Failed to start device user token builder");
+        let code = builder.start(&client).await.unwrap();
 
-        open::that(code.verification_uri.clone()).expect("Failed to open verification URI");
+        open::that(code.verification_uri.clone()).unwrap();
 
         let Ok(token) = builder.wait_for_code(&client, tokio::time::sleep).await else {
             return;
         };
 
-        diff_tx
-            .send(AppStateDiff::AccountLinked(client, token))
-            .expect("Failed to send account linked diff");
+        ui_diff_tx.send(AppStateDiff::AccountLinked(client, token)).unwrap();
     });
 }
 
-pub fn twitch_relink_account(diff_tx: &mpsc::Sender<AppStateDiff>, access_token: &str, refresh_token: &str) {
-    let diff_tx = diff_tx.clone();
+// BUG: Fix? This sometimes does not work.
+pub fn twitch_relink_account(state: &AppState, access_token: &str, refresh_token: &str) {
+    let ui_diff_tx = state.channels.ui_diff_tx.clone();
     let access_token = access_token.to_owned();
     let refresh_token = refresh_token.to_owned();
 
@@ -60,20 +59,24 @@ pub fn twitch_relink_account(diff_tx: &mpsc::Sender<AppStateDiff>, access_token:
         .await
         {
             Ok(user_token) => {
-                diff_tx
+                ui_diff_tx
                     .send(AppStateDiff::AccountLinked(client, user_token))
-                    .expect("Failed to send account linked diff");
+                    .unwrap();
             }
             Err(err) => {
                 warn!("Failed to relink account: {}", err);
-                App::show_toast(&diff_tx, ToastKind::Error, "Failed to relink account.");
+                App::show_toast(&ui_diff_tx, ToastKind::Error, "Failed to relink account.");
             }
         }
     });
 }
 
-pub fn twitch_get_channel_from_login(diff_tx: &mpsc::Sender<AppStateDiff>, account: &TwitchAccount, channel: &str) {
-    let diff_tx = diff_tx.clone();
+/// # Safety
+/// This function assumes a valid twitch account is logged in.
+pub unsafe fn twitch_get_channel_from_login(state: &AppState, channel: &str) {
+    let ui_diff_tx = state.channels.ui_diff_tx.clone();
+    let account = state.twitch_account.as_ref().unwrap();
+
     let client = account.client.clone();
     let token = account.token.clone();
     let channel = channel.trim().to_string();
@@ -83,40 +86,28 @@ pub fn twitch_get_channel_from_login(diff_tx: &mpsc::Sender<AppStateDiff>, accou
             Ok(info) => info,
             Err(err) => {
                 warn!("Failed to get channel information: {}", err);
-                App::show_toast(&diff_tx, ToastKind::Error, "Failed to get user information.");
                 return;
             }
         };
 
         match maybe_info {
             Some(channel_info) => {
-                App::show_toast(
-                    &diff_tx,
-                    ToastKind::Success,
-                    &format!("Connected to channel {}.", channel),
-                );
-                diff_tx
-                    .send(AppStateDiff::ChannelInfoUpdated(channel_info))
-                    .expect("Failed to send channel information");
+                ui_diff_tx.send(AppStateDiff::ChannelInfoUpdated(channel_info)).unwrap();
             }
             None => {
-                diff_tx
-                    .send(AppStateDiff::SetSettingsChannelError(String::from(
-                        "Channel not found.",
-                    )))
-                    .expect("Failed to send channel not found error");
+                warn!("Channel does not exist: {}", channel);
             }
         }
     });
 }
 
-pub fn twitch_send_message(
-    diff_tx: &mpsc::Sender<AppStateDiff>,
-    account: &TwitchAccount,
-    channel: &ChannelInformation,
-    message: &str,
-) {
-    let diff_tx = diff_tx.clone();
+/// # Safety
+/// This function assumes a valid twitch account is logged in.
+pub unsafe fn twitch_send_message(state: &AppState, message: &str) {
+    let ui_diff_tx = state.channels.ui_diff_tx.clone();
+    let account = state.twitch_account.as_ref().unwrap();
+    let channel = state.connected_channel_info.as_ref().unwrap();
+
     let client = account.client.clone();
     let token = account.token.clone();
     let user_id = account.token.user_id.clone();
@@ -131,19 +122,19 @@ pub fn twitch_send_message(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to send message: {}", err);
-                App::show_toast(&diff_tx, ToastKind::Error, "Failed to send message.");
+                App::show_toast(&ui_diff_tx, ToastKind::Error, "Failed to send message.");
             }
         }
     });
 }
 
-pub fn twitch_send_announcement(
-    diff_tx: &mpsc::Sender<AppStateDiff>,
-    account: &TwitchAccount,
-    channel: &ChannelInformation,
-    message: &str,
-) {
-    let diff_tx = diff_tx.clone();
+/// # Safety
+/// This function assumes a valid twitch account is logged in.
+pub unsafe fn twitch_send_announcement(state: &AppState, message: &str) {
+    let ui_diff_tx = state.channels.ui_diff_tx.clone();
+    let account = state.twitch_account.as_ref().unwrap();
+    let channel = state.connected_channel_info.as_ref().unwrap();
+
     let client = account.client.clone();
     let token = account.token.clone();
     let user_id = account.token.user_id.clone();
@@ -158,19 +149,20 @@ pub fn twitch_send_announcement(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to send announcement: {}", err);
-                App::show_toast(&diff_tx, ToastKind::Error, "Failed to send announcement.");
+                App::show_toast(&ui_diff_tx, ToastKind::Error, "Failed to send announcement.");
             }
         }
     });
 }
 
-pub fn twitch_delete_message(
-    diff_tx: &mpsc::Sender<AppStateDiff>,
-    account: &TwitchAccount,
-    channel: &ChannelInformation,
-    message_id: &str,
-) {
-    let diff_tx = diff_tx.clone();
+// TODO: continue refactoring this
+/// # Safety
+/// This function assumes a valid twitch account is logged in.
+pub unsafe fn twitch_delete_message(state: &AppState, message_id: &str) {
+    let ui_diff_tx = state.channels.ui_diff_tx.clone();
+    let account = state.twitch_account.as_ref().unwrap();
+    let channel = state.connected_channel_info.as_ref().unwrap();
+
     let client = account.client.clone();
     let token = account.token.clone();
     let user_id = account.token.user_id.clone();
@@ -185,7 +177,7 @@ pub fn twitch_delete_message(
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to delete message: {}", err);
-                App::show_toast(&diff_tx, ToastKind::Error, "Failed to delete message.");
+                App::show_toast(&ui_diff_tx, ToastKind::Error, "Failed to delete message.");
             }
         }
     });

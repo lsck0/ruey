@@ -1,0 +1,46 @@
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+name: CD
+
+jobs:
+  ci:
+    name: CD
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Setup Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+
+      - name: Setup LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "17.0"
+
+      - name: Install Other Dependencies
+        run: |
+          sudo sed -i '/^deb .* main/ s/main/main universe/' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install libtinfo6 mold gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 osslsigncode
+
+      - name: Run Build
+        run: |
+          make build
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body_path: CHANGELOG.md
+          files: |
+            dist/ruey-x86_64_linux
+            dist/ruey-x86_64_windows.exe

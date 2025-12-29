@@ -1,5 +1,4 @@
 #![allow(clippy::needless_return)]
-#![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod app;
@@ -24,7 +23,7 @@ fn default_window_options() -> NativeOptions {
         viewport: ViewportBuilder::default()
             .with_title("Ruey")
             .with_inner_size([1200.0, 720.0])
-            .with_min_inner_size([1200.0, 720.0]),
+            .with_min_inner_size([500.0, 720.0]),
         ..Default::default()
     };
 

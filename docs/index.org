@@ -1,17 +1,24 @@
 * PLAN
-
-    - [ ] Chat commands
-    - [ ] Twitch Pub/Sub integration
-    - [ ] narrow down twtich permissions for oAuth
+  - [ ] baseline chat client (no logging in)
+    - [ ] multiple viewports
+      - [ ] always on top support
+    - [ ] color theme editor
+    - [ ] show badges and emotes
+    - [ ] proper message history
+  - [ ] being logged in
+    - [ ] oauth login flow
+    - [ ] sending messages
+      - [ ] autocomplete for names
+      - [ ] commands (/ban, ...)
+    - [ ] performing mod actions
+  - [ ] 1.0.0 release
+  - [ ] stats tracking
+  - [ ] command engine
 
 * BUGS
-
-  - [X] long usernames overflow
   - [ ] active searching should hide notices
   - [ ] mod/unmod button broken
   - [ ] relinking account is broken (sometimes?)
-  - [ ] layout is not restored
-  - [ ] Clear chat does not mark messages by caster as deleted
   - [ ] Chat export is continuously exporting, change to point in time export and add option for continuous export
   - [ ] Treat "joined channel" as notice in the context of filtering through messages
   - [ ] notif for untimeouting/unbanning? (maybe it comes via pubsub)

@@ -1,26 +1,14 @@
-// TODO: REFACTOR THIS FILE
 use anyhow::Result;
 use diesel::prelude::*;
 use egui_dock::DockState;
 
 use crate::{app::App, models::SqlitePool, twitch::api::twitch_relink_account, ui::tabs::Tabs};
 
-#[derive(Debug, Default, Clone, Queryable, Selectable)]
+#[derive(Debug, Default, Clone, Insertable, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::settings)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Settings {
     pub id: i32,
-    pub zoom_factor: Option<f32>,
-    pub tree: Option<String>,
-    pub channel: Option<String>,
-    pub user_access_token: Option<String>,
-    pub user_refresh_token: Option<String>,
-}
-
-#[derive(Debug, Default, Clone, Insertable)]
-#[diesel(table_name = crate::schema::settings)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
-pub struct NewSettings {
     pub zoom_factor: Option<f32>,
     pub tree: Option<String>,
     pub channel: Option<String>,
@@ -48,7 +36,7 @@ impl Settings {
         if let Some(access_token) = stored_settings.user_access_token
             && let Some(refresh_token) = stored_settings.user_refresh_token
         {
-            twitch_relink_account(&app.state.channels.ui_diff_tx, &access_token, &refresh_token);
+            twitch_relink_account(&app.state, &access_token, &refresh_token);
         }
 
         return Ok(());
@@ -85,14 +73,11 @@ impl Settings {
 
         return Ok(settings.first::<Settings>(&mut db).optional()?.unwrap_or_else(|| {
             diesel::insert_into(crate::schema::settings::table)
-                .values(NewSettings::default())
+                .values(Settings::default())
                 .execute(&mut db)
                 .unwrap();
 
-            return Settings {
-                id: 1,
-                ..Default::default()
-            };
+            return Settings::default();
         }));
     }
 
@@ -104,13 +89,7 @@ impl Settings {
         diesel::delete(settings).execute(&mut db)?;
 
         diesel::insert_into(crate::schema::settings::table)
-            .values(NewSettings {
-                zoom_factor: self.zoom_factor,
-                tree: self.tree.clone(),
-                channel: self.channel.clone(),
-                user_access_token: self.user_access_token.clone(),
-                user_refresh_token: self.user_refresh_token.clone(),
-            })
+            .values(self)
             .execute(&mut db)?;
 
         return Ok(());

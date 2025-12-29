@@ -8,7 +8,7 @@ use eframe::{
 use egui_dock::DockState;
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use strum::IntoEnumIterator;
-use twitch_irc::message::{ClearChatAction, FollowersOnlyMode, IRCMessage, IRCTags, NoticeMessage};
+use twitch_irc::message::{ClearChatAction, FollowersOnlyMode};
 
 use crate::{
     models::{self, settings::Settings},
@@ -46,23 +46,13 @@ impl App {
         };
         Settings::restore_state(&mut app)?;
 
-        app.state.start_twitch_irc_worker(); // TODO: check if connection is successful without account
+        app.state.start_twitch_irc_worker();
 
         return Ok(Box::new(app));
     }
 
     pub fn show_notice(&mut self, message: String) {
-        self.state.chat.events.items.push(TwitchEvent::Notice(NoticeMessage {
-            channel_login: None,
-            message_id: None,
-            message_text: message,
-            source: IRCMessage {
-                tags: IRCTags::default(),
-                prefix: None,
-                command: String::from("NOTICE"),
-                params: Vec::new(),
-            },
-        }));
+        self.state.show_notice(message);
     }
 
     pub fn show_toast(diff_tx: &mpsc::Sender<AppStateDiff>, kind: ToastKind, message: &str) {
@@ -97,15 +87,12 @@ impl App {
 
             AppStateDiff::AccountLinked(client, token) => {
                 self.state.twitch_account = Some(TwitchAccount { client, token });
-                if let Some(connected_channel_name) = &self.state.connected_channel_name {
-                    twitch_get_channel_from_login(
-                        &self.state.channels.ui_diff_tx,
-                        self.state.twitch_account.as_ref().unwrap(),
-                        connected_channel_name,
-                    );
-                } else {
-                    self.state.connected_channel_name = None;
-                    self.state.connected_channel_info = None;
+                if let Some(connected_channel_name) = &self.state.connected_channel_name
+                    && self.state.did_we_join
+                {
+                    unsafe {
+                        twitch_get_channel_from_login(&self.state, connected_channel_name);
+                    }
                 }
             }
             AppStateDiff::ChannelInfoUpdated(channel_info) => {
@@ -122,6 +109,19 @@ impl App {
 
     pub fn register_new_twitch_event(&mut self, event: TwitchEvent) {
         match event {
+            event @ TwitchEvent::Join(_) => {
+                self.state.did_we_join = true;
+
+                if let Some(connected_channel_name) = &self.state.connected_channel_name
+                    && self.state.twitch_account.is_some()
+                {
+                    unsafe {
+                        twitch_get_channel_from_login(&self.state, connected_channel_name);
+                    }
+                }
+
+                self.state.chat.events.items.push(event);
+            }
             TwitchEvent::Ping(_) => {}
             TwitchEvent::Pong(_) => {}
             TwitchEvent::RoomState(state) => {
